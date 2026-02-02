@@ -2,6 +2,23 @@
 
 import { useState } from "react";
 
+// Aパターン用あいさつ文を生成（titleはGemini生成）
+function buildGreetingA(title: string): string {
+  return `【${title}】
+
+初めまして。
+スタートライン新卒採用責任者の船戸です。`;
+}
+
+// Bパターン用あいさつ文（固定）
+const GREETING_B = `【就活相談OK｜カジュアル面談】
+
+初めまして。
+スタートライン新卒採用責任者の船戸です。
+
+
+就活でこんな気持ちになることありませんか？`;
+
 // 固定文（改行・記号・全角半角は1文字も変更しない）
 const FIXED_TEXT = `◆＼当社の事業は一言で言うと…／
 「人と企業のつなぐHRソリューション企業」
@@ -100,64 +117,9 @@ function judgePattern(prCandidate: string): "A" | "B" {
   return charCount >= 200 ? "A" : "B";
 }
 
-// opening_message専用の厳格整形（1行15〜20文字、最大5行）
-// 固定文には絶対に適用しない
-function formatOpeningMessageStrict(text: string): string {
-  const raw = (text ?? "").replace(/\r\n/g, "\n").trim();
-  if (!raw) return "";
-
-  // 既存改行は一旦スペースにして整形
-  const normalized = raw.replace(/\n+/g, " ");
-
-  const MIN = 15;
-  const MAX = 20;
-  const MAX_LINES = 5;
-
-  const chars = Array.from(normalized);
-  const lines: string[] = [];
-  let current: string[] = [];
-
-  const pushLine = () => {
-    const line = current.join("").trim();
-    if (line) lines.push(line);
-    current = [];
-  };
-
-  const breakChars = new Set(["、", "。"]);
-
-  for (let i = 0; i < chars.length; i++) {
-    current.push(chars[i]);
-    const len = current.length;
-
-    // 5行目を確保するため、4行作ったら残りは最後に寄せる
-    if (lines.length >= MAX_LINES - 1) {
-      continue;
-    }
-
-    // 20文字に達したら改行
-    if (len >= MAX) {
-      pushLine();
-      continue;
-    }
-
-    // 15文字以上で句読点なら改行優先
-    if (len >= MIN && breakChars.has(chars[i])) {
-      pushLine();
-      continue;
-    }
-  }
-
-  pushLine();
-
-  // 5行を超えたら最後にまとめる
-  if (lines.length > MAX_LINES) {
-    const head = lines.slice(0, MAX_LINES - 1);
-    const tail = lines.slice(MAX_LINES - 1).join("");
-    lines.length = 0;
-    lines.push(...head, tail);
-  }
-
-  return lines.join("\n");
+// 半角スペースを除去
+function removeAsciiSpaces(text: string): string {
+  return text.replace(/ /g, "");
 }
 
 export default function Home() {
@@ -191,34 +153,60 @@ export default function Home() {
       const judgedPattern = judgePattern(prCandidate);
       setPattern(judgedPattern);
 
-      // Gemini APIでopening_message生成
-      const response = await fetch("/api/gemini", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ pasteText }),
-      });
+      let greeting: string;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "API呼び出しに失敗しました");
+      if (judgedPattern === "A") {
+        // Aパターン: title生成 → opening_message生成
+        const titleResponse = await fetch("/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "title", pasteText }),
+        });
+
+        if (!titleResponse.ok) {
+          const errorData = await titleResponse.json();
+          throw new Error(errorData.error || "title生成に失敗しました");
+        }
+
+        const titleData = await titleResponse.json();
+        const title = removeAsciiSpaces(titleData.title || "");
+
+        if (!title) {
+          throw new Error("titleが取得できませんでした");
+        }
+
+        greeting = buildGreetingA(title);
+      } else {
+        // Bパターン: 固定あいさつ文を使用
+        greeting = GREETING_B;
       }
 
-      const data = await response.json();
-      const openingMessage = data.opening_message;
+      // opening_message生成
+      const openingResponse = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "opening", pasteText }),
+      });
+
+      if (!openingResponse.ok) {
+        const errorData = await openingResponse.json();
+        throw new Error(errorData.error || "opening_message生成に失敗しました");
+      }
+
+      const openingData = await openingResponse.json();
+      let openingMessage = openingData.opening_message || "";
 
       if (!openingMessage) {
         throw new Error("opening_messageが取得できませんでした");
       }
 
+      // 半角スペースを除去（保険）
+      openingMessage = removeAsciiSpaces(openingMessage);
+
       setOpeningMessageCharCount(Array.from(openingMessage).length);
 
-      // opening_messageのみ整形（固定文は触らない）
-      const formattedOpening = formatOpeningMessageStrict(openingMessage);
-
-      // opening_message + 空行 + 固定文 を結合
-      const finalMessage = `${formattedOpening}\n\n${FIXED_TEXT}`;
+      // greeting + opening_message + 固定文 を結合
+      const finalMessage = `${greeting}\n\n${openingMessage}\n\n${FIXED_TEXT}`;
       setGeneratedMessage(finalMessage);
     } catch (err) {
       console.error("Generation error:", err);
