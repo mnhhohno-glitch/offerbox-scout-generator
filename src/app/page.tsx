@@ -8,13 +8,11 @@ const TEMPLATE_A = `【人の強みを引き出せるあなたへ】
 スタートライン新卒採用責任者の船戸です。
 
 プロフィールを拝見し、
-「**{summary}**」だと感じ、
-ぜひ一度お話したく
-ご連絡しました！
+{opening_message}
 
 ＼当社を一言で言うと…／
-「人と企業をつなぐ
-HRソリューション企業」です。
+人と企業をつなぐ
+HRソリューション企業です。
 （採用～定着～活躍までを支援）
 
 この仕事の面白さは、
@@ -23,7 +21,7 @@ HRソリューション企業」です。
 
 ---------------------------
 ✔成長をサポートしたい
-✔「ありがとう」がやりがいに
+✔ありがとうがやりがいに
 ✔誰かの可能性を広げたい
 ---------------------------
 
@@ -58,9 +56,7 @@ const TEMPLATE_B = `【就活相談OK｜カジュアル面談】
 スタートライン新卒採用責任者の船戸です。
 
 プロフィールを拝見し、
-「**{summary}**」だと感じ、
-ぜひ一度お話したく
-ご連絡しました！
+{opening_message}
 
 就活のこの時期、
 こんな気持ちになること
@@ -78,8 +74,8 @@ const TEMPLATE_B = `【就活相談OK｜カジュアル面談】
 気軽にお話できればと思っています。
 
 ＼当社を一言で言うと…／
-「人と企業をつなぐ
-HRソリューション企業」です。
+人と企業をつなぐ
+HRソリューション企業です。
 
 この仕事の面白さは、
 人の強みを見つけて
@@ -87,7 +83,7 @@ HRソリューション企業」です。
 
 ---------------------------
 ✔成長をサポートしたい
-✔「ありがとう」がやりがいに
+✔ありがとうがやりがいに
 ✔誰かの可能性を広げたい
 ---------------------------
 
@@ -175,16 +171,67 @@ function judgePattern(prCandidate: string): "A" | "B" {
   return charCount >= 200 ? "A" : "B";
 }
 
-// 生成文を作成
-function generateMessage(pattern: "A" | "B"): string {
-  // 仮のsummary
-  const summary =
-    pattern === "A"
-      ? "周囲に気を配りながら、主体的に行動できる方"
-      : "前向きに取り組み、可能性を広げたい方";
+// スマホ向け改行整形（1行30文字前後）
+function formatForMobile(text: string): string {
+  // 既存の改行を削除して1行にする
+  const singleLine = text.replace(/\n/g, "");
+  const chars = Array.from(singleLine);
+  const lines: string[] = [];
+  let currentLine = "";
+  let currentLength = 0;
 
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i];
+    currentLine += char;
+    currentLength++;
+
+    // 「、」「。」の直後で改行を優先
+    if ((char === "、" || char === "。") && currentLength >= 15) {
+      lines.push(currentLine);
+      currentLine = "";
+      currentLength = 0;
+      continue;
+    }
+
+    // 30文字を超えたら強制改行
+    if (currentLength >= 30) {
+      // 次の「、」「。」を探す（5文字以内）
+      let breakPoint = -1;
+      for (let j = i + 1; j < chars.length && j <= i + 5; j++) {
+        if (chars[j] === "、" || chars[j] === "。") {
+          breakPoint = j;
+          break;
+        }
+      }
+
+      if (breakPoint !== -1) {
+        // 近くに句読点があればそこまで含める
+        for (let j = i + 1; j <= breakPoint; j++) {
+          currentLine += chars[j];
+        }
+        i = breakPoint;
+      }
+
+      lines.push(currentLine);
+      currentLine = "";
+      currentLength = 0;
+    }
+  }
+
+  // 残りを追加
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  return lines.join("\n");
+}
+
+// 生成文を作成（opening_messageを差し込み）
+function generateMessage(pattern: "A" | "B", openingMessage: string): string {
   const template = pattern === "A" ? TEMPLATE_A : TEMPLATE_B;
-  return template.replace("{summary}", summary);
+  // opening_messageをスマホ向け改行整形
+  const formattedMessage = formatForMobile(openingMessage);
+  return template.replace("{opening_message}", formattedMessage);
 }
 
 export default function Home() {
@@ -192,25 +239,64 @@ export default function Home() {
   const [pattern, setPattern] = useState<"A" | "B" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
+  const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
+    number | null
+  >(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!pasteText.trim()) {
       return;
     }
 
-    // 自己PR候補を抽出
-    const prCandidate = extractPrCandidate(pasteText);
-    const charCount = Array.from(prCandidate).length;
-    setPrCharCount(charCount);
+    setLoading(true);
+    setError(null);
+    setGeneratedMessage("");
+    setPattern(null);
 
-    // A/B判定
-    const judgedPattern = judgePattern(prCandidate);
-    setPattern(judgedPattern);
+    try {
+      // 自己PR候補を抽出してA/B判定
+      const prCandidate = extractPrCandidate(pasteText);
+      const charCount = Array.from(prCandidate).length;
+      setPrCharCount(charCount);
 
-    // 生成文を作成
-    const message = generateMessage(judgedPattern);
-    setGeneratedMessage(message);
+      const judgedPattern = judgePattern(prCandidate);
+      setPattern(judgedPattern);
+
+      // Gemini APIでopening_message生成
+      const response = await fetch("/api/gemini", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ pasteText }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "API呼び出しに失敗しました");
+      }
+
+      const data = await response.json();
+      const openingMessage = data.opening_message;
+
+      if (!openingMessage) {
+        throw new Error("opening_messageが取得できませんでした");
+      }
+
+      setOpeningMessageCharCount(Array.from(openingMessage).length);
+
+      // テンプレートにopening_messageを差し込み
+      const message = generateMessage(judgedPattern, openingMessage);
+      setGeneratedMessage(message);
+    } catch (err) {
+      console.error("Generation error:", err);
+      setError(err instanceof Error ? err.message : "エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCopy = async () => {
@@ -251,6 +337,7 @@ export default function Home() {
             onChange={(e) => setPasteText(e.target.value)}
             placeholder="ここにプロフィール全文を貼り付けてください..."
             className="h-64 w-full rounded-lg border-2 border-dashed border-gray-300 bg-white p-4 text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+            disabled={loading}
           />
         </div>
 
@@ -258,12 +345,19 @@ export default function Home() {
         <div className="mb-6">
           <button
             onClick={handleGenerate}
-            disabled={!pasteText.trim()}
+            disabled={!pasteText.trim() || loading}
             className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
-            文書作成
+            {loading ? "生成中…" : "文書作成"}
           </button>
         </div>
+
+        {/* エラー表示 */}
+        {error && (
+          <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
 
         {/* A/B判定結果 */}
         {pattern && (
@@ -286,6 +380,11 @@ export default function Home() {
                     ? "テンプレートA（人の強みを引き出せるあなたへ）を使用"
                     : "テンプレートB（就活相談OK｜カジュアル面談）を使用"}
                 </p>
+                {openingMessageCharCount !== null && (
+                  <p className="text-sm text-gray-500">
+                    生成されたopening_message: {openingMessageCharCount}文字
+                  </p>
+                )}
               </div>
             </div>
           </div>
