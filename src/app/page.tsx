@@ -122,6 +122,204 @@ function removeAsciiSpaces(text: string): string {
   return text.replace(/ /g, "");
 }
 
+// opening_messageをAfter型に強制整形（最大6行、自然改行、半角スペース除去）
+// FIXED_TEXTには絶対に適用しない
+function formatOpeningMessageAfterStyle(rawText: string): string {
+  const END = "ぜひ一度お話したくご連絡しました！";
+  if (!rawText) return END;
+
+  // 1) normalize
+  let t = rawText.replace(/\r\n/g, "\n");
+  // 半角スペース除去（保険）
+  t = t.replace(/ /g, "");
+  // 全角スペースは基本不要だが、連続だけ整理
+  t = t.replace(/　{2,}/g, "　");
+  // 改行は一旦除去して再構成
+  t = t.replace(/\n+/g, "");
+  // 変な連続空白の整理
+  t = t.replace(/\s+/g, "");
+
+  // 2) ensure ending sentence exists (avoid duplicates)
+  if (t.includes(END)) {
+    // 末尾より後ろがあれば削る
+    const idx = t.lastIndexOf(END);
+    t = t.slice(0, idx + END.length);
+  } else {
+    // 末尾にENDを追加（句点がなければ整える）
+    if (!t.endsWith("。") && !t.endsWith("！") && !t.endsWith("!")) {
+      t += "。";
+    }
+    t += END;
+  }
+
+  // 3) sentence-aware split by 。 first (keep delimiter)
+  const sentences: string[] = [];
+  let buf = "";
+  for (const ch of Array.from(t)) {
+    buf += ch;
+    if (ch === "。") {
+      sentences.push(buf);
+      buf = "";
+    }
+  }
+  if (buf) sentences.push(buf);
+
+  // helper: split a long chunk by 、 then by particles
+  const splitByCommaThenParticle = (chunk: string) => {
+    const parts: string[] = [];
+    // first try by 、
+    if (chunk.includes("、")) {
+      let b = "";
+      for (const ch of Array.from(chunk)) {
+        b += ch;
+        if (ch === "、") {
+          parts.push(b);
+          b = "";
+        }
+      }
+      if (b) parts.push(b);
+      return parts.filter(Boolean);
+    }
+    // then try by particles (rough)
+    const particles = ["が", "を", "に", "で", "と", "は", "も", "へ", "や"];
+    let current = "";
+    for (const ch of Array.from(chunk)) {
+      current += ch;
+      if (particles.includes(ch) && current.length >= 18) {
+        parts.push(current);
+        current = "";
+      }
+    }
+    if (current) parts.push(current);
+    return parts.filter(Boolean);
+  };
+
+  // 4) build lines with target length
+  const TARGET_MAX = 34;
+  const MAX_LINES = 6;
+  const MIN_LINE = 12;
+
+  const lines: string[] = [];
+  const pushLine = (s: string) => {
+    const v = s.trim();
+    if (!v) return;
+    lines.push(v);
+  };
+
+  const feedChunk = (chunk: string) => {
+    if (!chunk) return;
+    // if chunk is short, append to last if possible
+    if (
+      lines.length > 0 &&
+      lines[lines.length - 1].length + chunk.length <= TARGET_MAX
+    ) {
+      lines[lines.length - 1] += chunk;
+      return;
+    }
+    // if chunk is too long, split
+    if (chunk.length > TARGET_MAX) {
+      const parts = splitByCommaThenParticle(chunk);
+      let acc = "";
+      for (const p of parts) {
+        if ((acc + p).length <= TARGET_MAX) {
+          acc += p;
+        } else {
+          if (acc) pushLine(acc);
+          acc = p;
+        }
+      }
+      if (acc) pushLine(acc);
+      return;
+    }
+    pushLine(chunk);
+  };
+
+  // feed sentences
+  for (const s of sentences) {
+    feedChunk(s);
+  }
+
+  // 5) post process: ensure max lines <= 6
+  while (lines.length > MAX_LINES) {
+    // merge the shortest adjacent pair
+    let bestIdx = 0;
+    let bestLen = Infinity;
+    for (let i = 0; i < lines.length - 1; i++) {
+      const len = lines[i].length + lines[i + 1].length;
+      if (len < bestLen) {
+        bestLen = len;
+        bestIdx = i;
+      }
+    }
+    lines.splice(bestIdx, 2, lines[bestIdx] + lines[bestIdx + 1]);
+  }
+
+  // 6) avoid too-short lines by merging
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].length < MIN_LINE && lines.length > 1) {
+      if (i > 0) {
+        lines[i - 1] += lines[i];
+        lines.splice(i, 1);
+        i--;
+      } else if (lines.length > 1) {
+        lines[1] = lines[0] + lines[1];
+        lines.splice(0, 1);
+        i--;
+      }
+    }
+  }
+
+  // 7) end line should end with END
+  // ensure END is in last line; if not, move it
+  const joined = lines.join("");
+  const endIdx = joined.lastIndexOf(END);
+  if (endIdx >= 0) {
+    const before = joined.slice(0, endIdx);
+    const endPart = joined.slice(endIdx); // includes END
+    // rebuild lines from before + endPart with same logic but force END on last line
+    const rebuilt: string[] = [];
+    // split by 。 and 、 for before
+    const chunks: string[] = [];
+    let b = "";
+    for (const ch of Array.from(before)) {
+      b += ch;
+      if (ch === "。" || ch === "、") {
+        chunks.push(b);
+        b = "";
+      }
+    }
+    if (b) chunks.push(b);
+
+    // build again but leave space for last line with END
+    for (const c of chunks) {
+      if (!c) continue;
+      if (rebuilt.length < MAX_LINES - 1) {
+        if (rebuilt.length === 0) {
+          rebuilt.push(c);
+        } else {
+          const last = rebuilt[rebuilt.length - 1];
+          if ((last + c).length <= TARGET_MAX) rebuilt[rebuilt.length - 1] = last + c;
+          else rebuilt.push(c);
+        }
+      } else {
+        // overflow goes to last bucket
+        rebuilt[rebuilt.length - 1] += c;
+      }
+    }
+    // append END as last line (try to keep it readable)
+    if (rebuilt.length === 0) rebuilt.push(endPart);
+    else rebuilt.push(endPart);
+    // enforce max lines by merging if needed
+    while (rebuilt.length > MAX_LINES) {
+      rebuilt[rebuilt.length - 2] += rebuilt[rebuilt.length - 1];
+      rebuilt.pop();
+    }
+    return rebuilt.join("\n");
+  }
+
+  return lines.join("\n");
+}
+
 export default function Home() {
   const [pasteText, setPasteText] = useState("");
   const [pattern, setPattern] = useState<"A" | "B" | null>(null);
@@ -194,19 +392,19 @@ export default function Home() {
       }
 
       const openingData = await openingResponse.json();
-      let openingMessage = openingData.opening_message || "";
+      const openingMessageRaw = openingData.opening_message || "";
 
-      if (!openingMessage) {
+      if (!openingMessageRaw) {
         throw new Error("opening_messageが取得できませんでした");
       }
 
-      // 半角スペースを除去（保険）
-      openingMessage = removeAsciiSpaces(openingMessage);
+      // After型整形を適用（FIXED_TEXTには適用しない）
+      const formattedOpening = formatOpeningMessageAfterStyle(openingMessageRaw);
 
-      setOpeningMessageCharCount(Array.from(openingMessage).length);
+      setOpeningMessageCharCount(Array.from(formattedOpening.replace(/\n/g, "")).length);
 
       // greeting + opening_message + 固定文 を結合
-      const finalMessage = `${greeting}\n\n${openingMessage}\n\n${FIXED_TEXT}`;
+      const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${FIXED_TEXT}`;
       setGeneratedMessage(finalMessage);
     } catch (err) {
       console.error("Generation error:", err);
