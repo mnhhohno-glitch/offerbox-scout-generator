@@ -25,7 +25,7 @@ const USER_INSTRUCTION_TEMPLATE = `【タスク】
 5. 必ず「ぜひ一度お話したくご連絡しました！」で締める
 
 【文章条件】
-- 200〜300文字（最大300文字）。300文字を超えたら必ず短くする
+- 150〜200文字（最大200文字）。200文字を超えたら必ず短くする
 - 具体エピソードを最低1つ含める
 - 「」（かぎ括弧）は絶対に使わない
 - **（アスタリスク装飾）は絶対に使わない
@@ -71,9 +71,9 @@ function extractOpeningMessage(text: string): string {
     return match[1];
   }
 
-  // それでも取れない場合はテキスト全体を返す（300文字制限）
+  // それでも取れない場合はテキスト全体を返す（200文字制限）
   const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-  return cleaned.slice(0, 300);
+  return cleaned.slice(0, 200);
 }
 
 export async function POST(request: NextRequest) {
@@ -164,10 +164,10 @@ export async function POST(request: NextRequest) {
     const rawText = content.parts[0].text;
     const openingMessage = extractOpeningMessage(rawText);
 
-    // 文字数チェック（300文字超過時は切り詰め）
+    // 文字数チェック（200文字超過時は切り詰め）
     const finalMessage =
-      Array.from(openingMessage).length > 300
-        ? Array.from(openingMessage).slice(0, 300).join("")
+      Array.from(openingMessage).length > 200
+        ? Array.from(openingMessage).slice(0, 200).join("")
         : openingMessage;
 
     return NextResponse.json({ opening_message: finalMessage });
