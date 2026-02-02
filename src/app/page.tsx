@@ -75,13 +75,11 @@ const PR_HEADINGS = [
 function extractPrCandidate(text: string): string {
   const lines = text.split(/\r?\n/);
 
-  // 見出し行を探す
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const hasHeading = PR_HEADINGS.some((h) => line.includes(h));
 
     if (hasHeading) {
-      // 見出しが見つかったら次行から空行までを自己PR候補
       const prLines: string[] = [];
       for (let j = i + 1; j < lines.length; j++) {
         const nextLine = lines[j].trim();
@@ -96,7 +94,6 @@ function extractPrCandidate(text: string): string {
     }
   }
 
-  // 見出しが見つからない場合は、空行区切り段落のうち最長段落を返す
   const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim() !== "");
   if (paragraphs.length === 0) {
     return "";
@@ -124,30 +121,62 @@ function removeAsciiSpaces(text: string): string {
 
 // 「〇〇さん」などの呼びかけ表現を除去
 function removeNameCalling(text: string): string {
-  // 〇〇さん、○○さん、◯◯さん などのパターンを除去
   return text
     .replace(/[〇○◯]+さんの、/g, "")
     .replace(/[〇○◯]+さん、/g, "")
     .replace(/[〇○◯]+さん/g, "");
 }
 
-// opening_messageを18〜22文字/行、最大5行に強制整形
-// FIXED_TEXTには絶対に適用しない
-function formatOpeningMessageAfterStyle(rawText: string): string {
+// opening_messageを「。」単位で改行に正規化（最終整形）
+function normalizeOpeningByPeriod(text: string): string {
+  const END = "ぜひ一度お話したくご連絡しました！";
+  if (!text) return END;
+
+  // 半角スペース除去（ユーザーの手間削減）
+  let t = text.replace(/ /g, "").replace(/\r\n/g, "\n").trim();
+
+  // 既存の改行は一旦潰す（後で「。」で作り直す）
+  t = t.replace(/\n+/g, "");
+  t = t.replace(/\s+/g, "");
+
+  // ENDを必ず含め、重複は削る
+  if (t.includes(END)) {
+    const idx = t.lastIndexOf(END);
+    t = t.slice(0, idx + END.length);
+  } else {
+    if (!t.endsWith("。") && !t.endsWith("！") && !t.endsWith("!")) t += "。";
+    t += END;
+  }
+
+  // 「。」で改行を作る（句点が消えるので戻す）
+  const chunks = t.split("。").filter(Boolean);
+  const lines = chunks.map((c, i) => {
+    const isLast = i === chunks.length - 1;
+    if (isLast) return c;
+    return c + "。";
+  });
+
+  let out = lines.join("\n");
+
+  // 最終行がENDで終わることを再保証
+  if (!out.endsWith(END)) out += "\n" + END;
+
+  return out;
+}
+
+// opening_messageを整形（句点で改行）
+function formatOpeningMessage(rawText: string): string {
   const END = "ぜひ一度お話したくご連絡しました！";
   if (!rawText) return END;
 
-  const TARGET_MAX = 22;
-  const MAX_LINES = 5;
-
-  // 1) normalize
+  // 1) 基本的なクリーンアップ
   let t = rawText.replace(/\r\n/g, "\n");
   t = t.replace(/ /g, ""); // 半角スペース除去
   t = removeNameCalling(t); // 「〇〇さん」を除去
-  t = t.replace(/　+/g, ""); // 全角スペース整理
-  t = t.replace(/\n+/g, ""); // 改行除去
+  t = t.replace(/　+/g, ""); // 全角スペース除去
+  t = t.replace(/\n+/g, ""); // 一度改行を除去して再構成
 
-  // 2) ensure ending sentence exists
+  // 2) 末尾の文を保証
   if (t.includes(END)) {
     const idx = t.lastIndexOf(END);
     t = t.slice(0, idx + END.length);
@@ -158,48 +187,21 @@ function formatOpeningMessageAfterStyle(rawText: string): string {
     t += END;
   }
 
-  // 3) 強制的に22文字以下で改行（句読点優先）
-  const chars = Array.from(t);
+  // 3) 句点（。）で改行する
   const lines: string[] = [];
-  let currentLine = "";
-
-  for (let i = 0; i < chars.length; i++) {
-    currentLine += chars[i];
-    const len = Array.from(currentLine).length;
-
-    // 22文字に達したら強制改行
-    if (len >= TARGET_MAX) {
-      lines.push(currentLine);
-      currentLine = "";
-      continue;
-    }
-
-    // 句読点で改行（15文字以上の場合）
-    if ((chars[i] === "、" || chars[i] === "。") && len >= 15) {
-      lines.push(currentLine);
-      currentLine = "";
-      continue;
+  let current = "";
+  
+  for (const ch of Array.from(t)) {
+    current += ch;
+    if (ch === "。") {
+      lines.push(current);
+      current = "";
     }
   }
-
-  // 残りを追加
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  // 4) 最大5行に収める
-  while (lines.length > MAX_LINES) {
-    // 最も短い行を前の行にマージ
-    let minIdx = 1;
-    let minLen = Infinity;
-    for (let i = 1; i < lines.length; i++) {
-      if (Array.from(lines[i]).length < minLen) {
-        minLen = Array.from(lines[i]).length;
-        minIdx = i;
-      }
-    }
-    lines[minIdx - 1] += lines[minIdx];
-    lines.splice(minIdx, 1);
+  
+  // 残り（！で終わる最終行など）
+  if (current) {
+    lines.push(current);
   }
 
   return lines.join("\n");
@@ -239,7 +241,6 @@ export default function Home() {
       let greeting: string;
 
       if (judgedPattern === "A") {
-        // Aパターン: title生成 → opening_message生成
         const titleResponse = await fetch("/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -260,7 +261,6 @@ export default function Home() {
 
         greeting = buildGreetingA(title);
       } else {
-        // Bパターン: 固定あいさつ文を使用
         greeting = GREETING_B;
       }
 
@@ -283,8 +283,10 @@ export default function Home() {
         throw new Error("opening_messageが取得できませんでした");
       }
 
-      // After型整形を適用（18〜22文字/行、最大5行）
-      const formattedOpening = formatOpeningMessageAfterStyle(openingMessageRaw);
+      // 整形を適用
+      let formattedOpening = formatOpeningMessage(openingMessageRaw);
+      // 最終的に「。」単位で改行を正規化
+      formattedOpening = normalizeOpeningByPeriod(formattedOpening);
 
       setOpeningMessageCharCount(
         Array.from(formattedOpening.replace(/\n/g, "")).length
@@ -337,7 +339,13 @@ export default function Home() {
             id="paste-text"
             value={pasteText}
             onChange={(e) => setPasteText(e.target.value)}
-            placeholder="ここにプロフィール全文を貼り付けてください..."
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && pasteText.trim() && !loading) {
+                e.preventDefault();
+                handleGenerate();
+              }
+            }}
+            placeholder="ここにプロフィール全文を貼り付けてください...（Enterで実行）"
             className="h-64 w-full rounded-lg border-2 border-dashed border-gray-300 bg-white p-4 text-gray-800 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
             disabled={loading}
           />
