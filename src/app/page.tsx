@@ -137,18 +137,17 @@ function formatOpeningMessageAfterStyle(rawText: string): string {
   const END = "ぜひ一度お話したくご連絡しました！";
   if (!rawText) return END;
 
+  const TARGET_MAX = 22;
+  const MAX_LINES = 5;
+
   // 1) normalize
   let t = rawText.replace(/\r\n/g, "\n");
-  // 半角スペース除去
-  t = t.replace(/ /g, "");
-  // 「〇〇さん」を除去
-  t = removeNameCalling(t);
-  // 全角スペース整理
-  t = t.replace(/　+/g, "");
-  // 改行は一旦除去して再構成
-  t = t.replace(/\n+/g, "");
+  t = t.replace(/ /g, ""); // 半角スペース除去
+  t = removeNameCalling(t); // 「〇〇さん」を除去
+  t = t.replace(/　+/g, ""); // 全角スペース整理
+  t = t.replace(/\n+/g, ""); // 改行除去
 
-  // 2) ensure ending sentence exists (avoid duplicates)
+  // 2) ensure ending sentence exists
   if (t.includes(END)) {
     const idx = t.lastIndexOf(END);
     t = t.slice(0, idx + END.length);
@@ -159,73 +158,48 @@ function formatOpeningMessageAfterStyle(rawText: string): string {
     t += END;
   }
 
-  // 3) 句読点で分割してチャンクを作成
-  const chunks: string[] = [];
-  let buf = "";
-  for (const ch of Array.from(t)) {
-    buf += ch;
-    if (ch === "。" || ch === "、") {
-      chunks.push(buf);
-      buf = "";
-    }
-  }
-  if (buf) chunks.push(buf);
-
-  // 4) 18〜22文字を目安に行を構築（最大5行）
-  const TARGET_MIN = 18;
-  const TARGET_MAX = 22;
-  const MAX_LINES = 5;
-
+  // 3) 強制的に22文字以下で改行（句読点優先）
+  const chars = Array.from(t);
   const lines: string[] = [];
   let currentLine = "";
 
-  for (const chunk of chunks) {
-    const testLine = currentLine + chunk;
-    const testLen = Array.from(testLine).length;
+  for (let i = 0; i < chars.length; i++) {
+    currentLine += chars[i];
+    const len = Array.from(currentLine).length;
 
-    if (testLen <= TARGET_MAX) {
-      // まだ収まるので追加
-      currentLine = testLine;
-    } else if (Array.from(currentLine).length >= TARGET_MIN) {
-      // 現在の行が十分な長さなので確定して次へ
+    // 22文字に達したら強制改行
+    if (len >= TARGET_MAX) {
       lines.push(currentLine);
-      currentLine = chunk;
-    } else {
-      // 現在の行が短すぎるので、チャンクを追加してから確定
-      currentLine = testLine;
-      if (Array.from(currentLine).length >= TARGET_MIN) {
-        lines.push(currentLine);
-        currentLine = "";
-      }
+      currentLine = "";
+      continue;
+    }
+
+    // 句読点で改行（15文字以上の場合）
+    if ((chars[i] === "、" || chars[i] === "。") && len >= 15) {
+      lines.push(currentLine);
+      currentLine = "";
+      continue;
     }
   }
+
   // 残りを追加
   if (currentLine) {
     lines.push(currentLine);
   }
 
-  // 5) 短すぎる行（18文字未満）を前の行にマージ
-  for (let i = lines.length - 1; i >= 0; i--) {
-    if (Array.from(lines[i]).length < TARGET_MIN && i > 0) {
-      lines[i - 1] += lines[i];
-      lines.splice(i, 1);
-    }
-  }
-
-  // 6) 最大5行に収める（超えたら前の行にマージ）
+  // 4) 最大5行に収める
   while (lines.length > MAX_LINES) {
-    // 最も短い隣接ペアをマージ
-    let minIdx = 0;
+    // 最も短い行を前の行にマージ
+    let minIdx = 1;
     let minLen = Infinity;
-    for (let i = 0; i < lines.length - 1; i++) {
-      const len = Array.from(lines[i]).length + Array.from(lines[i + 1]).length;
-      if (len < minLen) {
-        minLen = len;
+    for (let i = 1; i < lines.length; i++) {
+      if (Array.from(lines[i]).length < minLen) {
+        minLen = Array.from(lines[i]).length;
         minIdx = i;
       }
     }
-    lines[minIdx] = lines[minIdx] + lines[minIdx + 1];
-    lines.splice(minIdx + 1, 1);
+    lines[minIdx - 1] += lines[minIdx];
+    lines.splice(minIdx, 1);
   }
 
   return lines.join("\n");
