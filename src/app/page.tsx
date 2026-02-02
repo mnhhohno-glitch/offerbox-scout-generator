@@ -10,23 +10,21 @@ function buildGreetingA(title: string): string {
 スタートライン新卒採用責任者の船戸です。`;
 }
 
-// Bパターン用テンプレート（完全固定・Gemini生成なし・原文のまま）
-const B_TEMPLATE_TEXT = `【就活相談OK｜カジュアル面談】
-初めまして。
+// Bパターン用テンプレート（{{B_PROFILE_LINE}}を1文だけGemini生成で差し替え）
+const B_TEMPLATE_TEXT = `◆就活相談OK｜カジュアル面談
+
+はじめまして。
 株式会社スタートライン 新卒採用責任者の船戸です。
 
-プロフィールを拝見し、ぜひ一度お話してみたいと思いご連絡しました。
-（※いきなり選考のご案内ではありませんのでご安心ください）
+{{B_PROFILE_LINE}}
+まずは選考ではなく、情報交換の場として気軽にお話できれば嬉しいです。
 
-就活のこの時期、
-こんな気持ちになることはありませんか？
+就活のこの時期こんな気持ちになることはありませんか？
 
 ---------------------------
-
 ・何が向いているのか分からない
 ・業界が絞れず、情報収集で疲れてしまう
 ・納得感をもって就活を進めたい
-
 ---------------------------
 
 もし少しでも当てはまるようでしたら、
@@ -131,37 +129,84 @@ const PR_HEADINGS = [
 function extractPrCandidate(text: string): string {
   const lines = text.split(/\r?\n/);
 
+  // 見出し行のインデックスを全て取得
+  const headingIndices: number[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const hasHeading = PR_HEADINGS.some((h) => line.includes(h));
-
     if (hasHeading) {
-      const prLines: string[] = [];
-      for (let j = i + 1; j < lines.length; j++) {
-        const nextLine = lines[j].trim();
-        if (nextLine === "") {
-          break;
+      headingIndices.push(i);
+    }
+  }
+
+  // 自己PR/PR/アピール/強み などの見出しを優先的に探す
+  const priorityHeadings = ["自己PR", "PR", "アピール", "強み"];
+  
+  for (const priorityHeading of priorityHeadings) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes(priorityHeading)) {
+        // この見出しの次の行から、次の見出しまたは末尾までを取得
+        const prLines: string[] = [];
+        let emptyLineCount = 0;
+        
+        for (let j = i + 1; j < lines.length; j++) {
+          const nextLine = lines[j];
+          const nextLineTrimmed = nextLine.trim();
+          
+          // 次の見出しに到達したら終了
+          const isNextHeading = PR_HEADINGS.some((h) => nextLine.includes(h)) ||
+                                nextLine.match(/^[■◆●▼【]/) ||
+                                nextLine.match(/^[A-Za-z0-9]{2,}[:：]/) ||
+                                nextLine.match(/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]{2,}[:：]/);
+          
+          if (isNextHeading && j > i + 1) {
+            break;
+          }
+          
+          // 連続する空行が3つ以上あったらセクション終了とみなす
+          if (nextLineTrimmed === "") {
+            emptyLineCount++;
+            if (emptyLineCount >= 3) {
+              break;
+            }
+          } else {
+            emptyLineCount = 0;
+          }
+          
+          prLines.push(nextLine);
         }
-        prLines.push(lines[j]);
-      }
-      if (prLines.length > 0) {
-        return prLines.join("\n");
+        
+        // 末尾の空行を除去
+        while (prLines.length > 0 && prLines[prLines.length - 1].trim() === "") {
+          prLines.pop();
+        }
+        
+        if (prLines.length > 0) {
+          const result = prLines.join("\n").trim();
+          if (result.length > 0) {
+            return result;
+          }
+        }
       }
     }
   }
 
-  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim() !== "");
-  if (paragraphs.length === 0) {
-    return "";
+  // 見出しが見つからない場合は、全テキストから最長の段落を返す
+  // 空行区切りではなく、連続する2つ以上の空行で区切る
+  const sections = text.split(/\n{3,}/).filter((p) => p.trim() !== "");
+  if (sections.length === 0) {
+    // それでもなければ全テキストを返す
+    return text.trim();
   }
 
-  let longestParagraph = paragraphs[0];
-  for (const p of paragraphs) {
-    if (Array.from(p).length > Array.from(longestParagraph).length) {
-      longestParagraph = p;
+  let longestSection = sections[0];
+  for (const s of sections) {
+    if (Array.from(s.trim()).length > Array.from(longestSection.trim()).length) {
+      longestSection = s;
     }
   }
-  return longestParagraph;
+  return longestSection.trim();
 }
 
 // A/B判定
@@ -173,6 +218,14 @@ function judgePattern(prCandidate: string): "A" | "B" {
 // 半角スペースを除去
 function removeAsciiSpaces(text: string): string {
   return text.replace(/ /g, "");
+}
+
+// 貼り付けテキストから学部名を抽出
+function extractFacultyName(pasteText: string): string {
+  if (!pasteText) return "";
+  // よくある表記例: "経営経済学部  経済学科" / "経営経済学部 経済学科"
+  const m = pasteText.match(/([^\n\r]{2,30}学部)/);
+  return m?.[1]?.trim() ?? "";
 }
 
 // 「〇〇さん」などの呼びかけ表現を除去
@@ -350,9 +403,32 @@ export default function Home() {
         const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${FIXED_TEXT}`;
         setGeneratedMessage(finalMessage);
       } else {
-        // Bパターン: Gemini APIを呼ばず、B_TEMPLATE_TEXTをそのまま出力
+        // Bパターン: 学部名から1文だけGemini生成し、テンプレートに差し込む
+        const facultyName = extractFacultyName(pasteText);
+        
+        let profileLine = "プロフィールを拝見し、ご連絡しました。"; // デフォルト
+        
+        if (facultyName) {
+          // 学部名があればGeminiで1文生成
+          const res = await fetch("/api/gemini", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: "b_profile_line", facultyName }),
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            const generatedLine = (data.profile_line ?? "").replace(/ /g, "").trim();
+            if (generatedLine) {
+              profileLine = generatedLine;
+            }
+          }
+        }
+        
+        // テンプレートの{{B_PROFILE_LINE}}を差し替え
+        const finalB = B_TEMPLATE_TEXT.replace("{{B_PROFILE_LINE}}", profileLine);
         setOpeningMessageCharCount(null);
-        setGeneratedMessage(B_TEMPLATE_TEXT);
+        setGeneratedMessage(finalB);
       }
     } catch (err) {
       console.error("Generation error:", err);

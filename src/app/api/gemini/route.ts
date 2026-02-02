@@ -22,10 +22,40 @@ ${SYSTEM_INSTRUCTION_BASE}`;
 const SYSTEM_INSTRUCTION_OPENING = `あなたは新卒スカウト文の「冒頭パート」だけを作るライターです。
 ${SYSTEM_INSTRUCTION_BASE}
 
+【最重要ルール】
+「。」（句点）ごとに改行する。
+1文＝1行として書く。
+冒頭パート全体で200〜250文字程度にする。
+
 【重要】
 あなたが生成するのは「冒頭パート（opening_message）」のみです。
-この後ろに続く会社紹介文などの固定文はアプリ側で別途結合します。
-固定文の改行や表記を変更することは一切ありません（あなたは固定文を生成しません）。`;
+この後ろに続く会社紹介文などの固定文はアプリ側で別途結合します。`;
+
+// Bパターン用1文生成のsystemInstruction
+const SYSTEM_INSTRUCTION_B_PROFILE = `あなたは新卒スカウト文作成のプロです。
+必ず日本語で出力してください。
+事実不明の創作は禁止です。
+半角スペースは禁止です。
+「」や**などの装飾は禁止です。
+出力は必ずJSONのみで、指定キー以外は出力しません。`;
+
+// Bパターン用1文生成のプロンプト
+const B_PROFILE_LINE_TEMPLATE = `以下のスカウト文の「プロフィールを拝見し〜」の1文を、学部名に合わせて具体化してください。
+
+【ルール】
+- 出力は1文のみ（差し替え用）
+- 形式は必ず以下：
+  「プロフィールを拝見し、【学部名】で【一言要約】について学ばれている点に興味を持ち、ご連絡しました。」
+- 【一言要約】は学部名から一般的に推測できる範囲で、短く（例：◯◯や◯◯）
+- 学生は自己PRがほぼ空欄の前提なので、研究内容・経験の断定は禁止
+- 「すごい」「感銘」「素晴らしい」など過度な称賛は禁止
+- トーンは協調型（寄り添い・押し付けない）
+
+【学部名】
+{facultyName}
+
+【出力形式】
+JSONで {"profile_line":"..."} のみを返してください。`;
 
 // title生成用のプロンプト（Aパターン用、20文字厳守）
 const TITLE_INSTRUCTION_TEMPLATE = `【タスク】
@@ -55,44 +85,44 @@ JSON以外の文字は一切出さないでください。
 
 // opening_message生成用のプロンプト
 const OPENING_INSTRUCTION_TEMPLATE = `【タスク】
-以下のOfferBox貼り付けテキストを読み、スカウト文の「冒頭パート」だけを作成してください。
-※この後ろに続く会社紹介文などは固定で別に付けるため、あなたは冒頭パートのみ作ります。
-
-【内容要件】
-- 具体エピソードを最低1つ含める（例：アルバイト/ゼミ/部活など）
-- 冒頭で強みを要約し、その後に根拠となるエピソードを入れる
-- 学生の良い点が刺さるように、良さを具体的に言語化する
-- 断定しすぎない自然な表現にする
-- 最終行は必ず「ぜひ一度お話したくご連絡しました！」で終える（必須）
-- 個人特定情報（氏名/番号/住所/連絡先/SNS等）を出さない
-- 事実不明の創作はしない
-
-【絶対禁止事項】
-- 「〇〇さん」「○○さん」などの呼びかけは絶対禁止（名前は特定できないため不要）
-- 「」は禁止
-- ** **は禁止
-- 絵文字は禁止
-- 過剰な記号装飾は禁止
-- 学生番号などのIDは入れない
-- 半角スペースは禁止
+以下のOfferBox貼り付けテキストを読み、スカウト文の「冒頭パート」を作成してください。
 
 【改行ルール（最重要・厳守）】
-- 1行は18〜22文字（厳守）
-- 最大5行まで
-- 改行は「、」「。」の直後で行う
-- 18〜22文字で改行できるよう文章構成を工夫する
-- 文節や単語の途中で改行しない
+- 「。」（句点）ごとに改行する
+- 1文＝1行として書く
+- 「、」では改行しない
 
-【出力例】
-周囲を支えチームを前に進める意識があり、
-球技大会で賞を受け取られたエピソードから、
-皆で出す成果に喜びを感じる方だと感じました。
-人の成長を支援する当社だからこそ、
+【全体の文字数】
+- 冒頭パート全体で200〜250文字程度
+- 5〜7文程度
+
+【構成ルール】
+- 最終行は必ず「ぜひ一度お話したくご連絡しました！」で終える
+
+【内容ルール】
+- 具体エピソードを最低1つ含める（詳しく書く）
+- 冒頭で強みを要約し、その後にエピソードを入れる
+- 学生の良さを具体的に言語化する
+- 断定しすぎない自然な表現にする
+
+【禁止事項】
+- 「〇〇さん」などの呼びかけは禁止
+- 「」** **、絵文字、半角スペースは禁止
+- 個人特定情報は禁止
+
+【良い例（句点で改行）】
+周囲を支えながらチームを前に進める力があると感じました。
+高校の球技大会でリーダーを務め、皆で成果を出した経験が印象的でした。
+困難な状況でも諦めずに取り組む姿勢が伝わってきました。
+人の成長を支援する当社の仕事に向いていると感じました。
 ぜひ一度お話したくご連絡しました！
+
+【悪い例】
+周囲を支えながらチームを前に進める力があると感じました。高校の球技大会で...（句点で改行していない）
 
 【出力形式】
 JSONで {"opening_message":"..."} のみを返してください。
-JSON以外の文字（説明、前置き、コードブロック等）は一切出さないでください。
+改行は \\n で表現してください。
 
 【入力テキスト】
 <<<PASTE_TEXT>>>
@@ -138,22 +168,55 @@ function extractOpeningMessage(text: string): string {
   return cleaned.slice(0, 300);
 }
 
+// Bパターン用profile_lineをJSONまたはテキストから抽出
+function extractProfileLine(text: string): string {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed.profile_line && typeof parsed.profile_line === "string") {
+      return parsed.profile_line;
+    }
+  } catch {
+    // JSONパース失敗時はフォールバック
+  }
+
+  const match = text.match(/"profile_line"\s*:\s*"([^"]+)"/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  const cleaned = text.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+  return cleaned.slice(0, 150);
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { mode, pasteText } = await request.json();
+    const body = await request.json();
+    const { mode, pasteText, facultyName } = body;
 
-    if (!pasteText || typeof pasteText !== "string") {
+    // mode検証
+    if (!mode || !["title", "opening", "b_profile_line"].includes(mode)) {
       return NextResponse.json(
-        { error: "pasteText is required" },
+        { error: "mode must be 'title', 'opening', or 'b_profile_line'" },
         { status: 400 }
       );
     }
 
-    if (!mode || (mode !== "title" && mode !== "opening")) {
-      return NextResponse.json(
-        { error: "mode must be 'title' or 'opening'" },
-        { status: 400 }
-      );
+    // b_profile_lineモードはfacultyNameのみ必要
+    if (mode === "b_profile_line") {
+      if (!facultyName || typeof facultyName !== "string") {
+        return NextResponse.json(
+          { error: "facultyName is required for b_profile_line mode" },
+          { status: 400 }
+        );
+      }
+    } else {
+      // title/openingモードはpasteTextが必要
+      if (!pasteText || typeof pasteText !== "string") {
+        return NextResponse.json(
+          { error: "pasteText is required" },
+          { status: 400 }
+        );
+      }
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -164,26 +227,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isTitle = mode === "title";
-    const systemInstruction = isTitle
-      ? SYSTEM_INSTRUCTION_TITLE
-      : SYSTEM_INSTRUCTION_OPENING;
-    const userPromptTemplate = isTitle
-      ? TITLE_INSTRUCTION_TEMPLATE
-      : OPENING_INSTRUCTION_TEMPLATE;
-    const userPrompt = userPromptTemplate.replace("{pasteText}", pasteText);
+    let systemInstruction: string;
+    let userPrompt: string;
+    let responseSchema: object;
 
-    const responseSchema = isTitle
-      ? {
-          type: "object",
-          properties: { title: { type: "string" } },
-          required: ["title"],
-        }
-      : {
-          type: "object",
-          properties: { opening_message: { type: "string" } },
-          required: ["opening_message"],
-        };
+    if (mode === "title") {
+      systemInstruction = SYSTEM_INSTRUCTION_TITLE;
+      userPrompt = TITLE_INSTRUCTION_TEMPLATE.replace("{pasteText}", pasteText);
+      responseSchema = {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"],
+      };
+    } else if (mode === "opening") {
+      systemInstruction = SYSTEM_INSTRUCTION_OPENING;
+      userPrompt = OPENING_INSTRUCTION_TEMPLATE.replace("{pasteText}", pasteText);
+      responseSchema = {
+        type: "object",
+        properties: { opening_message: { type: "string" } },
+        required: ["opening_message"],
+      };
+    } else {
+      // b_profile_line
+      systemInstruction = SYSTEM_INSTRUCTION_B_PROFILE;
+      userPrompt = B_PROFILE_LINE_TEMPLATE.replace("{facultyName}", facultyName);
+      responseSchema = {
+        type: "object",
+        properties: { profile_line: { type: "string" } },
+        required: ["profile_line"],
+      };
+    }
 
     const requestBody = {
       system_instruction: {
@@ -239,19 +312,23 @@ export async function POST(request: NextRequest) {
 
     const rawText = content.parts[0].text;
 
-    if (isTitle) {
+    if (mode === "title") {
       const title = extractTitle(rawText);
-      // 20文字に切り詰め（保険）
       const finalTitle = Array.from(title).slice(0, 20).join("");
       return NextResponse.json({ title: finalTitle });
-    } else {
+    } else if (mode === "opening") {
       const openingMessage = extractOpeningMessage(rawText);
-      // 300文字に切り詰め（保険）
       const finalMessage =
         Array.from(openingMessage).length > 300
           ? Array.from(openingMessage).slice(0, 300).join("")
           : openingMessage;
       return NextResponse.json({ opening_message: finalMessage });
+    } else {
+      // b_profile_line
+      const profileLine = extractProfileLine(rawText);
+      // 半角スペース除去
+      const cleanedLine = profileLine.replace(/ /g, "").trim();
+      return NextResponse.json({ profile_line: cleanedLine });
     }
   } catch (error) {
     console.error("API route error:", error);
