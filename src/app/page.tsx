@@ -19,6 +19,12 @@ const GREETING_B = `【就活相談OK｜カジュアル面談】
 
 就活でこんな気持ちになることありませんか？`;
 
+// Bパターン用opening_message（固定・Gemini生成なし）
+const OPENING_B_FIXED = `プロフィールを拝見し、
+今の時期だからこそ一度お話しできればと思いご連絡しました。
+まずは就活相談からでも大丈夫です。
+ぜひ一度お話したくご連絡しました！`;
+
 // 固定文（改行・記号・全角半角は1文字も変更しない）
 const FIXED_TEXT = `◆＼当社の事業は一言で言うと…／
 「人と企業のつなぐHRソリューション企業」
@@ -239,8 +245,10 @@ export default function Home() {
       setPattern(judgedPattern);
 
       let greeting: string;
+      let formattedOpening: string;
 
       if (judgedPattern === "A") {
+        // Aパターン: Geminiでtitleとopening_messageを生成
         const titleResponse = await fetch("/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -260,33 +268,35 @@ export default function Home() {
         }
 
         greeting = buildGreetingA(title);
+
+        // opening_message生成（Aパターンのみ）
+        const openingResponse = await fetch("/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "opening", pasteText }),
+        });
+
+        if (!openingResponse.ok) {
+          const errorData = await openingResponse.json();
+          throw new Error(errorData.error || "opening_message生成に失敗しました");
+        }
+
+        const openingData = await openingResponse.json();
+        const openingMessageRaw = openingData.opening_message || "";
+
+        if (!openingMessageRaw) {
+          throw new Error("opening_messageが取得できませんでした");
+        }
+
+        // 整形を適用
+        formattedOpening = formatOpeningMessage(openingMessageRaw);
+        // 最終的に「。」単位で改行を正規化
+        formattedOpening = normalizeOpeningByPeriod(formattedOpening);
       } else {
+        // Bパターン: Gemini APIを呼ばず固定文を使用
         greeting = GREETING_B;
+        formattedOpening = OPENING_B_FIXED;
       }
-
-      // opening_message生成
-      const openingResponse = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "opening", pasteText }),
-      });
-
-      if (!openingResponse.ok) {
-        const errorData = await openingResponse.json();
-        throw new Error(errorData.error || "opening_message生成に失敗しました");
-      }
-
-      const openingData = await openingResponse.json();
-      const openingMessageRaw = openingData.opening_message || "";
-
-      if (!openingMessageRaw) {
-        throw new Error("opening_messageが取得できませんでした");
-      }
-
-      // 整形を適用
-      let formattedOpening = formatOpeningMessage(openingMessageRaw);
-      // 最終的に「。」単位で改行を正規化
-      formattedOpening = normalizeOpeningByPeriod(formattedOpening);
 
       setOpeningMessageCharCount(
         Array.from(formattedOpening.replace(/\n/g, "")).length
@@ -385,9 +395,14 @@ export default function Home() {
                   自己PR候補: {prCharCount}文字
                   {pattern === "A" ? "（200文字以上）" : "（200文字未満）"}
                 </p>
-                {openingMessageCharCount !== null && (
+                {pattern === "A" && openingMessageCharCount !== null && (
                   <p className="text-sm text-gray-500">
                     生成されたopening_message: {openingMessageCharCount}文字
+                  </p>
+                )}
+                {pattern === "B" && (
+                  <p className="text-sm text-orange-600">
+                    AI生成なし（固定文）
                   </p>
                 )}
               </div>
