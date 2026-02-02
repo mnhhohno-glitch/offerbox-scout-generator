@@ -10,22 +10,72 @@ function buildGreetingA(title: string): string {
 スタートライン新卒採用責任者の船戸です。`;
 }
 
-// Bパターン用あいさつ文（固定）
-const GREETING_B = `【就活相談OK｜カジュアル面談】
-
+// Bパターン用テンプレート（完全固定・Gemini生成なし・原文のまま）
+const B_TEMPLATE_TEXT = `【就活相談OK｜カジュアル面談】
 初めまして。
-スタートライン新卒採用責任者の船戸です。
+株式会社スタートライン 新卒採用責任者の船戸です。
 
+プロフィールを拝見し、ぜひ一度お話してみたいと思いご連絡しました。
+（※いきなり選考のご案内ではありませんのでご安心ください）
 
-就活でこんな気持ちになることありませんか？`;
+就活のこの時期、
+こんな気持ちになることはありませんか？
 
-// Bパターン用opening_message（固定・Gemini生成なし）
-const OPENING_B_FIXED = `プロフィールを拝見し、
-今の時期だからこそ一度お話しできればと思いご連絡しました。
-まずは就活相談からでも大丈夫です。
-ぜひ一度お話したくご連絡しました！`;
+---------------------------
 
-// 固定文（改行・記号・全角半角は1文字も変更しない）
+・何が向いているのか分からない
+・業界が絞れず、情報収集で疲れてしまう
+・納得感をもって就活を進めたい
+
+---------------------------
+
+もし少しでも当てはまるようでしたら、
+まずは【15分のカジュアル面談（WEB）】で、
+就活相談のように気軽にお話できれば嬉しいです。
+
+---
+
+◆＼当社の事業は一言で言うと…／
+「人と企業をつなぐHRソリューション企業」です。
+（架け橋となり、採用～定着～活躍までを支援しています）
+
+この仕事の面白さは、
+一人ひとりの強みや個性を見つけ、
+その人らしく活躍できる場を一緒につくっていけることです。
+
+◆特に、こんな想いを大切にしています
+---------------------------
+・成長をサポートしたい
+・「ありがとう」がやりがいになる
+・誰かの可能性を広げたい
+---------------------------
+
+1つでも「自分も近いかも」と感じた方は、
+当社の仕事を楽しめる可能性があると思います。
+
+ぜひカジュアル面談で、
+仕事内容や働き方も含めてざっくばらんにお話させてください！
+
+※承諾＝応募ではありません
+※就活相談だけでも大歓迎です
+※ご希望の方には会社説明会（WEB）もご案内します
+
+---
+
+◆＼働きやすさも整っています／
+---------------------------
+・土日祝休み／年休120日以上
+・残業20時間以下／WLB◎
+・ジョブローテーション制度あり
+　※数年で本社勤務などの実績もあります
+---------------------------
+
+お話できるのを楽しみにしています！
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
+// Aパターン用固定文（改行・記号・全角半角は1文字も変更しない）
 const FIXED_TEXT = `◆＼当社の事業は一言で言うと…／
 「人と企業のつなぐHRソリューション企業」
 （架け橋となり、採用～定着～活躍を支援）
@@ -292,19 +342,18 @@ export default function Home() {
         formattedOpening = formatOpeningMessage(openingMessageRaw);
         // 最終的に「。」単位で改行を正規化
         formattedOpening = normalizeOpeningByPeriod(formattedOpening);
+        setOpeningMessageCharCount(
+          Array.from(formattedOpening.replace(/\n/g, "")).length
+        );
+
+        // greeting + opening_message + 固定文 を結合
+        const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${FIXED_TEXT}`;
+        setGeneratedMessage(finalMessage);
       } else {
-        // Bパターン: Gemini APIを呼ばず固定文を使用
-        greeting = GREETING_B;
-        formattedOpening = OPENING_B_FIXED;
+        // Bパターン: Gemini APIを呼ばず、B_TEMPLATE_TEXTをそのまま出力
+        setOpeningMessageCharCount(null);
+        setGeneratedMessage(B_TEMPLATE_TEXT);
       }
-
-      setOpeningMessageCharCount(
-        Array.from(formattedOpening.replace(/\n/g, "")).length
-      );
-
-      // greeting + opening_message + 固定文 を結合
-      const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${FIXED_TEXT}`;
-      setGeneratedMessage(finalMessage);
     } catch (err) {
       console.error("Generation error:", err);
       setError(err instanceof Error ? err.message : "エラーが発生しました");
