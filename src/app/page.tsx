@@ -1,6 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+// 送信履歴の型定義
+interface HistoryRecord {
+  id: string;
+  timestamp: string;
+  pattern: "A" | "B";
+  pasteText: string;
+  generatedMessage: string;
+  prCharCount: number;
+  facultyName?: string;
+}
+
+// ローカルストレージのキー
+const HISTORY_STORAGE_KEY = "offerbox_scout_history";
 
 // Aパターン用あいさつ文を生成（titleはGemini生成）
 function buildGreetingA(title: string): string {
@@ -376,6 +390,49 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPreview, setSelectedPreview] = useState<"mobile" | "pc">("mobile");
+  const [history, setHistory] = useState<HistoryRecord[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // ローカルストレージから履歴を読み込み
+  useEffect(() => {
+    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error("履歴の読み込みに失敗:", e);
+      }
+    }
+  }, []);
+
+  // 履歴をローカルストレージに保存
+  const saveHistory = (newHistory: HistoryRecord[]) => {
+    setHistory(newHistory);
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
+  };
+
+  // 履歴に追加
+  const addToHistory = (record: Omit<HistoryRecord, "id" | "timestamp">) => {
+    const newRecord: HistoryRecord = {
+      ...record,
+      id: crypto.randomUUID(),
+      timestamp: new Date().toLocaleString("ja-JP"),
+    };
+    const newHistory = [newRecord, ...history].slice(0, 100); // 最大100件保持
+    saveHistory(newHistory);
+  };
+
+  // 全入力・出力をクリア（新規状態にリセット）
+  const clearAllState = () => {
+    setPasteText("");
+    setPattern(null);
+    setGeneratedMessage("");
+    setPrCharCount(null);
+    setOpeningMessageCharCount(null);
+    setExtractedFaculty(null);
+    setError(null);
+    setSelectedPreview("mobile");
+  };
 
   const handleGenerate = async () => {
     if (!pasteText.trim()) {
@@ -519,14 +576,27 @@ export default function Home() {
 
   const handleCopy = async () => {
     const textToCopy = getCurrentPreviewText();
-    if (!textToCopy) return;
+    if (!textToCopy || !pattern) return;
 
     try {
       await navigator.clipboard.writeText(textToCopy);
-      setCopyStatus("コピーしました");
+      
+      // 履歴に保存
+      addToHistory({
+        pattern,
+        pasteText,
+        generatedMessage,
+        prCharCount: prCharCount ?? 0,
+        facultyName: extractedFaculty ?? undefined,
+      });
+      
+      setCopyStatus("コピーしました - 履歴に保存済み");
+      
+      // 1.5秒後に全てクリアして新規状態に
       setTimeout(() => {
         setCopyStatus(null);
-      }, 3000);
+        clearAllState();
+      }, 1500);
     } catch {
       setCopyStatus("コピーに失敗しました");
       setTimeout(() => {
@@ -705,6 +775,67 @@ export default function Home() {
             )}
           </div>
         )}
+
+        {/* 送信履歴セクション */}
+        <div className="mt-8 border-t pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2"
+            >
+              <span>{showHistory ? "▼" : "▶"}</span>
+              送信履歴（{history.length}件）
+            </button>
+            {history.length > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm("全ての履歴を削除しますか？")) {
+                    saveHistory([]);
+                  }
+                }}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                履歴をクリア
+              </button>
+            )}
+          </div>
+
+          {showHistory && (
+            <div className="space-y-3">
+              {history.length === 0 ? (
+                <p className="text-sm text-gray-400">履歴がありません</p>
+              ) : (
+                history.map((record) => (
+                  <div
+                    key={record.id}
+                    className="rounded-lg bg-white p-3 shadow-sm border border-gray-100"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
+                            record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
+                          }`}
+                        >
+                          {record.pattern}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {record.timestamp}
+                        </span>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {record.prCharCount}文字
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 truncate">
+                      {record.pasteText.slice(0, 80)}...
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
