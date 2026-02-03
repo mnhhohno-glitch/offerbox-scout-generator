@@ -127,25 +127,18 @@ const PR_HEADINGS = [
 
 // 自己PR候補を抽出
 function extractPrCandidate(text: string): string {
+  console.log("=== extractPrCandidate開始 ===");
   const lines = text.split(/\r?\n/);
+  console.log("行数:", lines.length);
 
-  // 見出し行のインデックスを全て取得
-  const headingIndices: number[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const hasHeading = PR_HEADINGS.some((h) => line.includes(h));
-    if (hasHeading) {
-      headingIndices.push(i);
-    }
-  }
-
-  // 自己PR/PR/アピール/強み などの見出しを優先的に探す
-  const priorityHeadings = ["自己PR", "PR", "アピール", "強み"];
+  // 自己PR/アピール/強み などの見出しを優先的に探す（PRは自己PRと重複するので除外）
+  const priorityHeadings = ["自己PR", "アピール", "強み", "ガクチカ", "学生時代に力を入れたこと"];
   
   for (const priorityHeading of priorityHeadings) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (line.includes(priorityHeading)) {
+        console.log(`見出し「${priorityHeading}」を行${i}で発見:`, line);
         // この見出しの次の行から、次の見出しまたは末尾までを取得
         const prLines: string[] = [];
         let emptyLineCount = 0;
@@ -154,13 +147,18 @@ function extractPrCandidate(text: string): string {
           const nextLine = lines[j];
           const nextLineTrimmed = nextLine.trim();
           
-          // 次の見出しに到達したら終了
-          const isNextHeading = PR_HEADINGS.some((h) => nextLine.includes(h)) ||
-                                nextLine.match(/^[■◆●▼【]/) ||
+          // 次の見出しに到達したら終了（自己PR系以外の見出し）
+          const isNextHeading = nextLine.match(/^[■◆●▼【]/) ||
                                 nextLine.match(/^[A-Za-z0-9]{2,}[:：]/) ||
-                                nextLine.match(/^[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]{2,}[:：]/);
+                                (nextLineTrimmed.length > 0 && nextLineTrimmed.length < 20 && 
+                                 (nextLineTrimmed.includes("希望") || 
+                                  nextLineTrimmed.includes("志望") ||
+                                  nextLineTrimmed.includes("資格") ||
+                                  nextLineTrimmed.includes("趣味") ||
+                                  nextLineTrimmed.includes("特技")));
           
           if (isNextHeading && j > i + 1) {
+            console.log(`次の見出しを行${j}で検出、終了:`, nextLine);
             break;
           }
           
@@ -168,13 +166,13 @@ function extractPrCandidate(text: string): string {
           if (nextLineTrimmed === "") {
             emptyLineCount++;
             if (emptyLineCount >= 3) {
+              console.log(`連続空行3つで終了 (行${j})`);
               break;
             }
           } else {
             emptyLineCount = 0;
+            prLines.push(nextLine);
           }
-          
-          prLines.push(nextLine);
         }
         
         // 末尾の空行を除去
@@ -184,6 +182,7 @@ function extractPrCandidate(text: string): string {
         
         if (prLines.length > 0) {
           const result = prLines.join("\n").trim();
+          console.log("抽出結果:", result.length, "文字");
           if (result.length > 0) {
             return result;
           }
@@ -192,11 +191,14 @@ function extractPrCandidate(text: string): string {
     }
   }
 
+  console.log("見出しが見つからない、フォールバック処理");
+  
   // 見出しが見つからない場合は、全テキストから最長の段落を返す
-  // 空行区切りではなく、連続する2つ以上の空行で区切る
-  const sections = text.split(/\n{3,}/).filter((p) => p.trim() !== "");
+  const sections = text.split(/\n\n+/).filter((p) => p.trim() !== "");
+  console.log("セクション数:", sections.length);
+  
   if (sections.length === 0) {
-    // それでもなければ全テキストを返す
+    console.log("セクションなし、全テキストを返す");
     return text.trim();
   }
 
@@ -206,6 +208,7 @@ function extractPrCandidate(text: string): string {
       longestSection = s;
     }
   }
+  console.log("最長セクション:", longestSection.length, "文字");
   return longestSection.trim();
 }
 
@@ -220,12 +223,48 @@ function removeAsciiSpaces(text: string): string {
   return text.replace(/ /g, "");
 }
 
-// 貼り付けテキストから学部名を抽出
+// 貼り付けテキストから学部学科名を抽出
 function extractFacultyName(pasteText: string): string {
   if (!pasteText) return "";
-  // よくある表記例: "経営経済学部  経済学科" / "経営経済学部 経済学科"
-  const m = pasteText.match(/([^\n\r]{2,30}学部)/);
-  return m?.[1]?.trim() ?? "";
+  
+  // パターン1: 「◯◯学部」「◯◯学科」を探す
+  // 学部名は通常2〜15文字程度（例：経済学部、経営経済学部、総合政策学部）
+  const facultyMatch = pasteText.match(/([ぁ-んァ-ヶー一-龠]{2,15}学部)/);
+  const departmentMatch = pasteText.match(/([ぁ-んァ-ヶー一-龠]{2,15}学科)/);
+  
+  let result = "";
+  
+  if (facultyMatch && facultyMatch[1]) {
+    result = facultyMatch[1].trim();
+  }
+  
+  if (departmentMatch && departmentMatch[1]) {
+    if (result) {
+      result += " " + departmentMatch[1].trim();
+    } else {
+      result = departmentMatch[1].trim();
+    }
+  }
+  
+  // パターン2: 学部が見つからない場合、「学部」を含む行全体を探す
+  if (!result) {
+    const lines = pasteText.split(/\r?\n/);
+    for (const line of lines) {
+      if (line.includes("学部")) {
+        // 行から学部名を抽出（空白区切りで学部を含む部分）
+        const parts = line.split(/[\s　]+/);
+        for (const part of parts) {
+          if (part.includes("学部")) {
+            result = part.trim();
+            break;
+          }
+        }
+        if (result) break;
+      }
+    }
+  }
+  
+  return result;
 }
 
 // 「〇〇さん」などの呼びかけ表現を除去
@@ -316,6 +355,14 @@ function formatOpeningMessage(rawText: string): string {
   return lines.join("\n");
 }
 
+// PC版プレビュー用に整形（改行を減らす）
+function formatForPC(text: string): string {
+  if (!text) return "";
+  // 連続する改行を1つに整理
+  let result = text.replace(/\n{3,}/g, "\n\n");
+  return result;
+}
+
 export default function Home() {
   const [pasteText, setPasteText] = useState("");
   const [pattern, setPattern] = useState<"A" | "B" | null>(null);
@@ -324,9 +371,11 @@ export default function Home() {
   const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
     number | null
   >(null);
+  const [extractedFaculty, setExtractedFaculty] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPreview, setSelectedPreview] = useState<"mobile" | "pc">("mobile");
 
   const handleGenerate = async () => {
     if (!pasteText.trim()) {
@@ -337,6 +386,7 @@ export default function Home() {
     setError(null);
     setGeneratedMessage("");
     setPattern(null);
+    setExtractedFaculty(null);
 
     try {
       // 自己PR候補を抽出してA/B判定
@@ -344,7 +394,13 @@ export default function Home() {
       const charCount = Array.from(prCandidate).length;
       setPrCharCount(charCount);
 
+      console.log("=== A/B判定デバッグ ===");
+      console.log("貼り付けテキスト長:", Array.from(pasteText).length, "文字");
+      console.log("抽出された自己PR候補:", prCandidate.slice(0, 100) + "...");
+      console.log("自己PR候補の文字数:", charCount);
+      
       const judgedPattern = judgePattern(prCandidate);
+      console.log("判定結果:", judgedPattern, "(200文字以上でA)");
       setPattern(judgedPattern);
 
       let greeting: string;
@@ -352,6 +408,7 @@ export default function Home() {
 
       if (judgedPattern === "A") {
         // Aパターン: Geminiでtitleとopening_messageを生成
+        console.log("=== Aパターン処理開始 ===");
         const titleResponse = await fetch("/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -405,25 +462,38 @@ export default function Home() {
       } else {
         // Bパターン: 学部名から1文だけGemini生成し、テンプレートに差し込む
         const facultyName = extractFacultyName(pasteText);
+        setExtractedFaculty(facultyName || null);
+        console.log("Bパターン: 抽出された学部名 =", facultyName);
         
         let profileLine = "プロフィールを拝見し、ご連絡しました。"; // デフォルト
         
         if (facultyName) {
           // 学部名があればGeminiで1文生成
-          const res = await fetch("/api/gemini", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ mode: "b_profile_line", facultyName }),
-          });
-          
-          if (res.ok) {
-            const data = await res.json();
-            const generatedLine = (data.profile_line ?? "").replace(/ /g, "").trim();
-            if (generatedLine) {
-              profileLine = generatedLine;
+          try {
+            const res = await fetch("/api/gemini", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mode: "b_profile_line", facultyName }),
+            });
+            
+            if (res.ok) {
+              const data = await res.json();
+              console.log("Gemini B応答:", data);
+              const generatedLine = (data.profile_line ?? "").replace(/ /g, "").trim();
+              if (generatedLine) {
+                profileLine = generatedLine;
+              }
+            } else {
+              console.error("Gemini B API error:", res.status);
             }
+          } catch (e) {
+            console.error("Gemini B fetch error:", e);
           }
+        } else {
+          console.log("学部名が抽出できなかったため、デフォルト文を使用");
         }
+        
+        console.log("最終profileLine:", profileLine);
         
         // テンプレートの{{B_PROFILE_LINE}}を差し替え
         const finalB = B_TEMPLATE_TEXT.replace("{{B_PROFILE_LINE}}", profileLine);
@@ -438,11 +508,21 @@ export default function Home() {
     }
   };
 
+  // 現在選択中のプレビュー内容を取得
+  const getCurrentPreviewText = () => {
+    if (!generatedMessage) return "";
+    if (selectedPreview === "pc") {
+      return formatForPC(generatedMessage);
+    }
+    return generatedMessage;
+  };
+
   const handleCopy = async () => {
-    if (!generatedMessage) return;
+    const textToCopy = getCurrentPreviewText();
+    if (!textToCopy) return;
 
     try {
-      await navigator.clipboard.writeText(generatedMessage);
+      await navigator.clipboard.writeText(textToCopy);
       setCopyStatus("コピーしました");
       setTimeout(() => {
         setCopyStatus(null);
@@ -526,9 +606,21 @@ export default function Home() {
                   </p>
                 )}
                 {pattern === "B" && (
-                  <p className="text-sm text-orange-600">
-                    AI生成なし（固定文）
-                  </p>
+                  <>
+                    <p className="text-sm text-orange-600">
+                      1文のみAI生成（固定文ベース）
+                    </p>
+                    {extractedFaculty && (
+                      <p className="text-sm text-gray-500">
+                        抽出された学部: {extractedFaculty}
+                      </p>
+                    )}
+                    {!extractedFaculty && (
+                      <p className="text-sm text-gray-400">
+                        学部名が抽出できませんでした
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -538,7 +630,7 @@ export default function Home() {
         {/* プレビュー */}
         {generatedMessage && (
           <div className="mb-6">
-            <div className="mb-2 flex items-center justify-between">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800">
                 生成文プレビュー
               </h2>
@@ -554,11 +646,63 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="rounded-lg bg-white p-4 shadow">
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">
-                {generatedMessage}
-              </pre>
+
+            {/* タブUI */}
+            <div className="mb-4 flex gap-2">
+              <button
+                onClick={() => setSelectedPreview("mobile")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  selectedPreview === "mobile"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                スマホ版
+              </button>
+              <button
+                onClick={() => setSelectedPreview("pc")}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  selectedPreview === "pc"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                PC版
+              </button>
             </div>
+
+            {/* スマホ版プレビュー */}
+            {selectedPreview === "mobile" && (
+              <div className="flex justify-center">
+                <div
+                  className="rounded-lg bg-white p-4 shadow"
+                  style={{
+                    width: "375px",
+                    maxWidth: "100%",
+                    fontSize: "16px",
+                  }}
+                >
+                  <pre
+                    className="font-sans leading-relaxed text-gray-800"
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {generatedMessage}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* PC版プレビュー */}
+            {selectedPreview === "pc" && (
+              <div className="rounded-lg bg-white p-4 shadow">
+                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">
+                  {formatForPC(generatedMessage)}
+                </pre>
+              </div>
+            )}
           </div>
         )}
       </div>
