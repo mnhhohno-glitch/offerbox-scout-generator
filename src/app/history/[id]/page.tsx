@@ -4,6 +4,17 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
+// オファーステータスの型定義
+type OfferStatus = "offered" | "applied" | "on_hold" | "declined";
+
+// オファーステータスのオプション
+const OFFER_STATUS_OPTIONS: { value: OfferStatus; label: string; color: string }[] = [
+  { value: "offered", label: "オファー済", color: "bg-blue-500 text-white" },
+  { value: "applied", label: "応募", color: "bg-green-500 text-white" },
+  { value: "on_hold", label: "保留", color: "bg-yellow-500 text-white" },
+  { value: "declined", label: "辞退", color: "bg-red-500 text-white" },
+];
+
 // 履歴レコードの型定義
 interface HistoryRecord {
   id: string;
@@ -24,6 +35,7 @@ interface HistoryRecord {
   departmentName?: string;
   prefecture?: string;
   gender?: string;
+  offerStatus?: OfferStatus;
 }
 
 const HISTORY_STORAGE_KEY = "offerbox_scout_history";
@@ -102,6 +114,25 @@ export default function HistoryDetailPage() {
     }
   };
 
+  const handleStatusChange = (newStatus: OfferStatus) => {
+    if (!record) return;
+
+    try {
+      const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (stored) {
+        const history: HistoryRecord[] = JSON.parse(stored);
+        const newHistory = history.map((h) =>
+          h.id === record.id ? { ...h, offerStatus: newStatus } : h
+        );
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
+        setRecord({ ...record, offerStatus: newStatus });
+      }
+    } catch (err) {
+      console.error("ステータス更新エラー:", err);
+      alert("ステータスの更新に失敗しました");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -125,6 +156,9 @@ export default function HistoryDetailPage() {
     );
   }
 
+  const currentStatus = record.offerStatus || "offered";
+  const statusOption = OFFER_STATUS_OPTIONS.find(o => o.value === currentStatus);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="mx-auto max-w-2xl">
@@ -144,16 +178,36 @@ export default function HistoryDetailPage() {
         {/* メイン情報 */}
         <div className="bg-white rounded-lg shadow p-6">
           {/* タイトル行 */}
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-            <span
-              className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white ${
-                record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
-              }`}
-            >
-              {record.pattern}
-            </span>
-            <div>
+          <div className="flex items-center justify-between mb-6 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <span
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white ${
+                  record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
+                }`}
+              >
+                {record.pattern}
+              </span>
               <p className="text-sm text-gray-500">{record.timestamp}</p>
+            </div>
+          </div>
+
+          {/* オファーステータス */}
+          <div className="mb-6">
+            <h2 className="text-sm font-bold text-gray-800 mb-3">オファーステータス</h2>
+            <div className="flex gap-2">
+              {OFFER_STATUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => handleStatusChange(opt.value)}
+                  className={`px-4 py-2 text-sm rounded font-medium transition-all ${
+                    currentStatus === opt.value
+                      ? opt.color + " ring-2 ring-offset-2 ring-gray-400"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -163,7 +217,7 @@ export default function HistoryDetailPage() {
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-gray-500">ID:</span>{" "}
-                <span className="text-gray-800 font-mono">{record.studentId7 || "-"}</span>
+                <span className="text-blue-600 font-mono font-bold">{record.studentId7 || "-"}</span>
               </div>
               <div>
                 <span className="text-gray-500">大学名:</span>{" "}

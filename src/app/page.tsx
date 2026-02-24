@@ -17,9 +17,20 @@ const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const IS_STAGING = APP_ENV === "staging";
 
 // 履歴スキーマバージョン（互換性管理用）
-const HISTORY_SCHEMA_VERSION = 3;
+const HISTORY_SCHEMA_VERSION = 4;
 
-// 送信履歴の型定義（v3: 学生情報を含む）
+// オファーステータスの型定義
+type OfferStatus = "offered" | "applied" | "on_hold" | "declined";
+
+// オファーステータスのオプション
+const OFFER_STATUS_OPTIONS: { value: OfferStatus; label: string; color: string }[] = [
+  { value: "offered", label: "オファー済", color: "bg-blue-500 text-white" },
+  { value: "applied", label: "応募", color: "bg-green-500 text-white" },
+  { value: "on_hold", label: "保留", color: "bg-yellow-500 text-white" },
+  { value: "declined", label: "辞退", color: "bg-red-500 text-white" },
+];
+
+// 送信履歴の型定義（v4: オファーステータスを含む）
 interface HistoryRecord {
   id: string;
   timestamp: string;
@@ -41,6 +52,8 @@ interface HistoryRecord {
   departmentName?: string;    // 学科
   prefecture?: string;        // 都道府県
   gender?: string;            // 性別
+  // オファーステータス
+  offerStatus?: OfferStatus;  // デフォルト: offered
 }
 
 // export用のデータ構造
@@ -790,6 +803,7 @@ export default function Home() {
         departmentName,
         prefecture,
         gender: gender !== "unknown" ? gender : undefined,
+        offerStatus: "offered", // デフォルトは「オファー済」
       });
       
       console.log("履歴に保存しました:", savedRecord.id);
@@ -1057,7 +1071,7 @@ export default function Home() {
 
           {/* 検索フィルタ */}
           {history.length > 0 && (
-            <div className="mb-4 p-3 bg-gray-100 rounded-lg">
+            <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">ID検索</label>
@@ -1066,7 +1080,7 @@ export default function Home() {
                     value={searchIdQuery}
                     onChange={(e) => setSearchIdQuery(e.target.value)}
                     placeholder="7桁IDで検索"
-                    className="w-full px-2 py-1 text-sm border rounded"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
@@ -1076,7 +1090,7 @@ export default function Home() {
                     value={searchFreeQuery}
                     onChange={(e) => setSearchFreeQuery(e.target.value)}
                     placeholder="大学名、学部など"
-                    className="w-full px-2 py-1 text-sm border rounded"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1142,6 +1156,8 @@ export default function Home() {
 
                 return filteredHistory.map((record) => {
                   const isSelected = selectedRecordIds.has(record.id);
+                  const currentStatus = record.offerStatus || "offered";
+                  const statusOption = OFFER_STATUS_OPTIONS.find(o => o.value === currentStatus);
                   
                   return (
                     <div
@@ -1190,7 +1206,7 @@ export default function Home() {
                               <span className="font-mono text-blue-600">{record.studentId7}</span>
                             )}
                             {record.universityName && (
-                              <span className="text-blue-600">{record.universityName}</span>
+                              <span>{record.universityName}</span>
                             )}
                             {record.facultyName && (
                               <span>{record.facultyName}</span>
@@ -1207,9 +1223,30 @@ export default function Home() {
                           </div>
                         </div>
                         
+                        {/* ステータス選択 */}
+                        <select
+                          value={currentStatus}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as OfferStatus;
+                            const newHistory = history.map(h => 
+                              h.id === record.id ? { ...h, offerStatus: newStatus } : h
+                            );
+                            saveHistory(newHistory);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className={`ml-3 px-2 py-1 text-xs rounded font-medium ${statusOption?.color || "bg-gray-200"}`}
+                        >
+                          {OFFER_STATUS_OPTIONS.map(opt => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        
                         {/* 削除ボタン */}
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (confirm("この履歴を削除しますか？")) {
                               const newHistory = history.filter(h => h.id !== record.id);
                               saveHistory(newHistory);
