@@ -1,15 +1,24 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import {
+  extractStudentId7,
+  extractUniversityName,
+  extractFacultyName as extractFacultyFromUtils,
+  extractDepartmentName,
+  extractPrefecture,
+  extractGender,
+  getGenderLabel,
+} from "@/lib/extraction-utils";
 
 // 環境変数からアプリ環境を取得
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const IS_STAGING = APP_ENV === "staging";
 
 // 履歴スキーマバージョン（互換性管理用）
-const HISTORY_SCHEMA_VERSION = 2;
+const HISTORY_SCHEMA_VERSION = 3;
 
-// 送信履歴の型定義（v2: Gemini出力を含む）
+// 送信履歴の型定義（v3: 学生情報を含む）
 interface HistoryRecord {
   id: string;
   timestamp: string;
@@ -24,7 +33,13 @@ interface HistoryRecord {
     openingMessage?: string;  // Aパターン用
     profileLine?: string;     // Bパターン用
   };
-  facultyName?: string;
+  // 学生情報
+  studentId7?: string;        // 7桁ID
+  universityName?: string;    // 大学名
+  facultyName?: string;       // 学部
+  departmentName?: string;    // 学科
+  prefecture?: string;        // 都道府県
+  gender?: string;            // 性別
 }
 
 // export用のデータ構造
@@ -750,14 +765,27 @@ export default function Home() {
     try {
       await navigator.clipboard.writeText(textToCopy);
       
-      // 履歴に保存（Gemini出力含む）
+      // 学生情報を抽出
+      const studentId7 = extractStudentId7(pasteText) ?? undefined;
+      const universityName = extractUniversityName(pasteText) ?? undefined;
+      const facultyName = extractFacultyFromUtils(pasteText) ?? extractedFaculty ?? undefined;
+      const departmentName = extractDepartmentName(pasteText) ?? undefined;
+      const prefecture = extractPrefecture(pasteText) ?? undefined;
+      const gender = extractGender(pasteText);
+      
+      // 履歴に保存（Gemini出力 + 学生情報含む）
       const savedRecord = addToHistory({
         pattern,
         pasteText,
         generatedMessage,
         prCharCount: prCharCount ?? 0,
         geminiOutputs: Object.keys(currentGeminiOutputs).length > 0 ? currentGeminiOutputs : undefined,
-        facultyName: extractedFaculty ?? undefined,
+        studentId7,
+        universityName,
+        facultyName,
+        departmentName,
+        prefecture,
+        gender: gender !== "unknown" ? gender : undefined,
       });
       
       console.log("履歴に保存しました:", savedRecord.id);
@@ -1044,81 +1072,129 @@ export default function Home() {
                     {/* ヘッダー行（クリックで展開） */}
                     <div
                       onClick={() => setExpandedRecordId(isExpanded ? null : record.id)}
-                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+                      className="p-3 cursor-pointer hover:bg-gray-50"
                     >
-                      <div className="flex items-center gap-3">
-                        {/* チェックボックス */}
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            const newSet = new Set(selectedRecordIds);
-                            if (isSelected) {
-                              newSet.delete(record.id);
-                            } else {
-                              newSet.add(record.id);
-                            }
-                            setSelectedRecordIds(newSet);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300"
-                        />
-                        {/* パターン表示 */}
-                        <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                            record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
-                          }`}
-                        >
-                          {record.pattern}
-                        </span>
-                        {/* 日時 */}
-                        <span className="text-xs text-gray-500">
-                          {record.timestamp}
-                        </span>
-                        {/* AI出力バッジ */}
-                        {record.geminiOutputs && (
-                          <span className="text-xs text-green-600">
-                            [AI出力保存済]
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          {/* チェックボックス */}
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              const newSet = new Set(selectedRecordIds);
+                              if (isSelected) {
+                                newSet.delete(record.id);
+                              } else {
+                                newSet.add(record.id);
+                              }
+                              setSelectedRecordIds(newSet);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                          />
+                          {/* パターン表示 */}
+                          <span
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
+                              record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
+                            }`}
+                          >
+                            {record.pattern}
                           </span>
+                          {/* 日時 */}
+                          <span className="text-xs text-gray-500">
+                            {record.timestamp}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {/* 削除ボタン */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm("この履歴を削除しますか？")) {
+                                const newHistory = history.filter(h => h.id !== record.id);
+                                saveHistory(newHistory);
+                                if (expandedRecordId === record.id) {
+                                  setExpandedRecordId(null);
+                                }
+                              }
+                            }}
+                            className="text-xs text-red-400 hover:text-red-600"
+                          >
+                            削除
+                          </button>
+                        </div>
+                      </div>
+                      {/* 学生情報サマリー（一覧表示） */}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 ml-7">
+                        {record.studentId7 && (
+                          <span className="font-mono">{record.studentId7}</span>
+                        )}
+                        {record.universityName && (
+                          <span>{record.universityName}</span>
+                        )}
+                        {record.facultyName && (
+                          <span>{record.facultyName}</span>
+                        )}
+                        {record.prefecture && (
+                          <span>{record.prefecture}</span>
+                        )}
+                        {record.gender && (
+                          <span>{getGenderLabel(record.gender)}</span>
+                        )}
+                        {!record.studentId7 && !record.universityName && !record.facultyName && (
+                          <span className="text-gray-400">（学生情報なし）</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400">
-                          {record.prCharCount}文字
-                        </span>
-                        {/* 削除ボタン */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm("この履歴を削除しますか？")) {
-                              const newHistory = history.filter(h => h.id !== record.id);
-                              saveHistory(newHistory);
-                              if (expandedRecordId === record.id) {
-                                setExpandedRecordId(null);
-                              }
-                            }
-                          }}
-                          className="text-xs text-red-400 hover:text-red-600"
-                        >
-                          削除
-                        </button>
-                      </div>
                     </div>
-                    
-                    {/* 省略表示（閉じている時） */}
-                    {!isExpanded && (
-                      <div className="px-3 pb-3 pt-0">
-                        <p className="text-xs text-gray-600 truncate">
-                          {record.generatedMessage.slice(0, 80)}...
-                        </p>
-                      </div>
-                    )}
                     
                     {/* 詳細表示（展開時） */}
                     {isExpanded && (
                       <div className="px-3 pb-3 border-t border-gray-100">
+                        {/* 学生情報詳細 */}
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-xs font-bold text-gray-700 mb-2">学生情報</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-gray-500">ID:</span>{" "}
+                              <span className="font-mono">{record.studentId7 || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">大学名:</span>{" "}
+                              <span>{record.universityName || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">学部:</span>{" "}
+                              <span>{record.facultyName || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">学科:</span>{" "}
+                              <span>{record.departmentName || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">都道府県:</span>{" "}
+                              <span>{record.prefecture || "-"}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">性別:</span>{" "}
+                              <span>{record.gender ? getGenderLabel(record.gender) : "-"}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">テンプレ:</span>{" "}
+                              <span className={record.pattern === "A" ? "text-green-600 font-bold" : "text-orange-600 font-bold"}>
+                                {record.pattern}パターン
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">文字数:</span>{" "}
+                              <span>{record.prCharCount}文字</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* スカウト文 */}
                         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs font-bold text-gray-700 mb-2">スカウト文</p>
                           <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
                             {record.generatedMessage}
                           </p>
@@ -1131,7 +1207,7 @@ export default function Home() {
                           }}
                           className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
                         >
-                          コピー
+                          スカウト文をコピー
                         </button>
                       </div>
                     )}

@@ -107,3 +107,81 @@ export function getGenderLabel(gender: string | null): string {
       return "-";
   }
 }
+
+// 学部の抽出
+export function extractFacultyName(text: string): string | null {
+  if (!text) return null;
+
+  // パターン1: "学部: ○○学部" や "学部：○○学部"
+  const pattern1 = /学部\s*[:：]\s*([^\n\r]+)/;
+  const match1 = text.match(pattern1);
+  if (match1) {
+    return match1[1].trim();
+  }
+
+  // パターン2: "○○学部" という形式（学部で終わる文字列、大学を含まない）
+  const pattern2 = /([^\s\n\r大学]+学部)/;
+  const match2 = text.match(pattern2);
+  if (match2) {
+    return match2[1].trim();
+  }
+
+  return null;
+}
+
+// 学科の抽出
+export function extractDepartmentName(text: string): string | null {
+  if (!text) return null;
+
+  // パターン1: "学科: ○○学科" や "学科：○○学科"
+  const pattern1 = /学科\s*[:：]\s*([^\n\r]+)/;
+  const match1 = text.match(pattern1);
+  if (match1) {
+    return match1[1].trim();
+  }
+
+  // パターン2: "○○学科" という形式（学科で終わる文字列）
+  const pattern2 = /([^\s\n\r]+学科)/;
+  const match2 = text.match(pattern2);
+  if (match2) {
+    return match2[1].trim();
+  }
+
+  return null;
+}
+
+// 都道府県の抽出
+const PREFECTURES = [
+  "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+  "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+  "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+  "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+  "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+  "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+  "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県"
+];
+
+export function extractPrefecture(text: string): string | null {
+  if (!text) return null;
+
+  // パターン1: "都道府県: ○○県" など
+  const pattern1 = /(都道府県|出身地|居住地|住所)\s*[:：]\s*([^\n\r]+)/;
+  const match1 = text.match(pattern1);
+  if (match1) {
+    const value = match1[2].trim();
+    for (const pref of PREFECTURES) {
+      if (value.includes(pref)) {
+        return pref;
+      }
+    }
+  }
+
+  // パターン2: テキスト内の都道府県名を直接検索
+  for (const pref of PREFECTURES) {
+    if (text.includes(pref)) {
+      return pref;
+    }
+  }
+
+  return null;
+}
