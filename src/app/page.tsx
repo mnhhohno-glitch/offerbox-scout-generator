@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   extractStudentId7,
   extractUniversityName,
@@ -422,9 +423,12 @@ export default function Home() {
   const [selectedPreview, setSelectedPreview] = useState<"mobile" | "pc">("mobile");
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   
-  // 履歴の展開状態と選択状態
-  const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
+  // 履歴の選択状態と検索
   const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(new Set());
+  const [searchIdQuery, setSearchIdQuery] = useState("");
+  const [searchFreeQuery, setSearchFreeQuery] = useState("");
+  
+  const router = useRouter();
   
   // Gemini出力を一時保存（履歴保存時に使用）
   const [currentGeminiOutputs, setCurrentGeminiOutputs] = useState<{
@@ -1051,169 +1055,175 @@ export default function Home() {
             )}
           </div>
 
+          {/* 検索フィルタ */}
+          {history.length > 0 && (
+            <div className="mb-4 p-3 bg-gray-100 rounded-lg">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">ID検索</label>
+                  <input
+                    type="text"
+                    value={searchIdQuery}
+                    onChange={(e) => setSearchIdQuery(e.target.value)}
+                    placeholder="7桁IDで検索"
+                    className="w-full px-2 py-1 text-sm border rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">フリー検索</label>
+                  <input
+                    type="text"
+                    value={searchFreeQuery}
+                    onChange={(e) => setSearchFreeQuery(e.target.value)}
+                    placeholder="大学名、学部など"
+                    className="w-full px-2 py-1 text-sm border rounded"
+                  />
+                </div>
+              </div>
+              {(searchIdQuery || searchFreeQuery) && (
+                <button
+                  onClick={() => {
+                    setSearchIdQuery("");
+                    setSearchFreeQuery("");
+                  }}
+                  className="mt-2 text-xs text-blue-600 hover:underline"
+                >
+                  検索をクリア
+                </button>
+              )}
+            </div>
+          )}
+
           {/* 
             JSON Export/Import機能は管理者用途として保持（UIからは非表示）
             機能自体はhandleExportHistory, handleFileSelect等で利用可能
           */}
 
-          <div className="space-y-3">
+          <div className="space-y-2">
             {history.length === 0 ? (
               <p className="text-sm text-gray-400">履歴がありません</p>
             ) : (
-              history.map((record) => {
-                const isExpanded = expandedRecordId === record.id;
-                const isSelected = selectedRecordIds.has(record.id);
-                
-                return (
-                  <div
-                    key={record.id}
-                    className={`rounded-lg bg-white shadow-sm border ${isSelected ? "border-blue-400 bg-blue-50" : "border-gray-100"}`}
-                  >
-                    {/* ヘッダー行（クリックで展開） */}
+              (() => {
+                // 検索フィルタ適用
+                const filteredHistory = history.filter((record) => {
+                  // ID検索
+                  if (searchIdQuery && record.studentId7) {
+                    if (!record.studentId7.includes(searchIdQuery)) {
+                      return false;
+                    }
+                  } else if (searchIdQuery && !record.studentId7) {
+                    return false;
+                  }
+                  
+                  // フリー検索
+                  if (searchFreeQuery) {
+                    const searchText = searchFreeQuery.toLowerCase();
+                    const searchableText = [
+                      record.universityName,
+                      record.facultyName,
+                      record.departmentName,
+                      record.prefecture,
+                      record.pasteText,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")
+                      .toLowerCase();
+                    if (!searchableText.includes(searchText)) {
+                      return false;
+                    }
+                  }
+                  
+                  return true;
+                });
+
+                if (filteredHistory.length === 0) {
+                  return <p className="text-sm text-gray-400">検索結果がありません</p>;
+                }
+
+                return filteredHistory.map((record) => {
+                  const isSelected = selectedRecordIds.has(record.id);
+                  
+                  return (
                     <div
-                      onClick={() => setExpandedRecordId(isExpanded ? null : record.id)}
-                      className="p-3 cursor-pointer hover:bg-gray-50"
+                      key={record.id}
+                      className={`rounded-lg bg-white shadow-sm border ${isSelected ? "border-blue-400 bg-blue-50" : "border-gray-100"}`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
-                          {/* チェックボックス */}
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              const newSet = new Set(selectedRecordIds);
-                              if (isSelected) {
-                                newSet.delete(record.id);
-                              } else {
-                                newSet.add(record.id);
-                              }
-                              setSelectedRecordIds(newSet);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-4 h-4 text-blue-600 rounded border-gray-300"
-                          />
-                          {/* パターン表示 */}
-                          <span
-                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                              record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
-                            }`}
-                          >
-                            {record.pattern}
-                          </span>
-                          {/* 日時 */}
-                          <span className="text-xs text-gray-500">
-                            {record.timestamp}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {/* 削除ボタン */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm("この履歴を削除しますか？")) {
-                                const newHistory = history.filter(h => h.id !== record.id);
-                                saveHistory(newHistory);
-                                if (expandedRecordId === record.id) {
-                                  setExpandedRecordId(null);
-                                }
-                              }
-                            }}
-                            className="text-xs text-red-400 hover:text-red-600"
-                          >
-                            削除
-                          </button>
-                        </div>
-                      </div>
-                      {/* 学生情報サマリー（一覧表示） */}
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 ml-7">
-                        {record.studentId7 && (
-                          <span className="font-mono">{record.studentId7}</span>
-                        )}
-                        {record.universityName && (
-                          <span>{record.universityName}</span>
-                        )}
-                        {record.facultyName && (
-                          <span>{record.facultyName}</span>
-                        )}
-                        {record.prefecture && (
-                          <span>{record.prefecture}</span>
-                        )}
-                        {record.gender && (
-                          <span>{getGenderLabel(record.gender)}</span>
-                        )}
-                        {!record.studentId7 && !record.universityName && !record.facultyName && (
-                          <span className="text-gray-400">（学生情報なし）</span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* 詳細表示（展開時） */}
-                    {isExpanded && (
-                      <div className="px-3 pb-3 border-t border-gray-100">
-                        {/* 学生情報詳細 */}
-                        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                          <p className="text-xs font-bold text-gray-700 mb-2">学生情報</p>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                              <span className="text-gray-500">ID:</span>{" "}
-                              <span className="font-mono">{record.studentId7 || "-"}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">大学名:</span>{" "}
-                              <span>{record.universityName || "-"}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">学部:</span>{" "}
-                              <span>{record.facultyName || "-"}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">学科:</span>{" "}
-                              <span>{record.departmentName || "-"}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">都道府県:</span>{" "}
-                              <span>{record.prefecture || "-"}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">性別:</span>{" "}
-                              <span>{record.gender ? getGenderLabel(record.gender) : "-"}</span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">テンプレ:</span>{" "}
-                              <span className={record.pattern === "A" ? "text-green-600 font-bold" : "text-orange-600 font-bold"}>
-                                {record.pattern}パターン
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-gray-500">文字数:</span>{" "}
-                              <span>{record.prCharCount}文字</span>
-                            </div>
+                      <div className="flex items-center p-3">
+                        {/* チェックボックス */}
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            const newSet = new Set(selectedRecordIds);
+                            if (isSelected) {
+                              newSet.delete(record.id);
+                            } else {
+                              newSet.add(record.id);
+                            }
+                            setSelectedRecordIds(newSet);
+                          }}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 mr-3 flex-shrink-0"
+                        />
+                        
+                        {/* クリックで詳細ページへ遷移 */}
+                        <div
+                          onClick={() => router.push(`/history/${record.id}`)}
+                          className="flex-1 cursor-pointer hover:bg-gray-50 -m-2 p-2 rounded"
+                        >
+                          <div className="flex items-center gap-3 mb-1">
+                            {/* パターン表示 */}
+                            <span
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
+                                record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
+                              }`}
+                            >
+                              {record.pattern}
+                            </span>
+                            {/* 日時 */}
+                            <span className="text-xs text-gray-500">
+                              {record.timestamp}
+                            </span>
+                          </div>
+                          {/* 学生情報サマリー */}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-700 ml-9">
+                            {record.studentId7 && (
+                              <span className="font-mono text-blue-600">{record.studentId7}</span>
+                            )}
+                            {record.universityName && (
+                              <span className="text-blue-600">{record.universityName}</span>
+                            )}
+                            {record.facultyName && (
+                              <span>{record.facultyName}</span>
+                            )}
+                            {record.prefecture && (
+                              <span>{record.prefecture}</span>
+                            )}
+                            {record.gender && (
+                              <span>{getGenderLabel(record.gender)}</span>
+                            )}
+                            {!record.studentId7 && !record.universityName && !record.facultyName && (
+                              <span className="text-gray-400">（学生情報なし）</span>
+                            )}
                           </div>
                         </div>
                         
-                        {/* スカウト文 */}
-                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                          <p className="text-xs font-bold text-gray-700 mb-2">スカウト文</p>
-                          <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
-                            {record.generatedMessage}
-                          </p>
-                        </div>
+                        {/* 削除ボタン */}
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(record.generatedMessage);
-                            alert("コピーしました");
+                          onClick={() => {
+                            if (confirm("この履歴を削除しますか？")) {
+                              const newHistory = history.filter(h => h.id !== record.id);
+                              saveHistory(newHistory);
+                            }
                           }}
-                          className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                          className="ml-3 text-xs text-red-400 hover:text-red-600 flex-shrink-0"
                         >
-                          スカウト文をコピー
+                          削除
                         </button>
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                    </div>
+                  );
+                });
+              })()
             )}
           </div>
 
