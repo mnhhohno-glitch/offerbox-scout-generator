@@ -793,3 +793,350 @@ handleCopy()
 | 整形関数 | 責務が重複 | 統合または明確な順序定義 |
 | 定数 | page.tsx内に直接定義 | 別ファイル分離 |
 | 型定義 | page.tsx内に定義 | types.ts分離 |
+
+---
+
+## 21. アーキテクチャ図
+
+### 21.1 全体構成図
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      ブラウザ (クライアント)                    │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │                   React (page.tsx)                      │ │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐  │ │
+│  │  │ UI状態    │  │ ロジック  │  │ localStorage        │  │ │
+│  │  │ (useState)│  │ (関数群)  │  │ (履歴永続化)         │  │ │
+│  │  └──────────┘  └──────────┘  └──────────────────────┘  │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              │ fetch (POST /api/gemini)
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Next.js API Route                        │
+│                    (route.ts - サーバー側)                    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              │ HTTPS
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Google Gemini API                          │
+│                  (gemini-2.0-flash)                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 21.2 データの流れ（入力から出力まで）
+
+```
+【入力】OfferBoxプロフィール（生テキスト）
+    │
+    ▼
+【抽出】自己PR候補テキスト
+    │  └─ extractPrCandidate() で見出しを検出し該当セクションを抽出
+    │
+    ▼
+【判定】A/Bパターン
+    │  └─ 200文字以上 → A、未満 → B
+    │
+    ├──────────────────────┬──────────────────────┐
+    ▼ Aパターン            ▼ Bパターン            │
+    │                      │                      │
+【API送信】               【抽出】                │
+pasteText全文             学部名のみ              │
+    │                      │                      │
+    ▼                      ▼                      │
+【Gemini生成】           【Gemini生成】           │
+・title (20文字)          ・profile_line (1文)   │
+・opening_message         　                      │
+    │                      │                      │
+    ▼                      ▼                      │
+【整形】                 【置換】                 │
+・句点改行               ・テンプレートの         │
+・名前呼び除去            {{B_PROFILE_LINE}}     │
+    │                      │                      │
+    ▼                      ▼                      │
+【結合】                 【出力】                 │
+greeting + opening       B_TEMPLATE_TEXT         │
++ FIXED_TEXT             （固定文）               │
+    │                      │                      │
+    └──────────────────────┴──────────────────────┘
+                           │
+                           ▼
+                    【最終出力】スカウト文
+                           │
+                           ▼
+                    【表示】プレビュー（スマホ版/PC版）
+                           │
+                           ▼
+                    【コピー】クリップボード
+                           │
+                           ▼
+                    【保存】localStorage（履歴）
+```
+
+### 21.3 API通信のデータ形式
+
+**リクエスト（フロント → バックエンド）**
+
+```
+Aパターン: { mode: "title", pasteText: "..." }
+           { mode: "opening", pasteText: "..." }
+
+Bパターン: { mode: "b_profile_line", facultyName: "経済学部" }
+```
+
+**レスポンス（バックエンド → フロント）**
+
+```
+Aパターン: { title: "支える力が強みのあなたへ" }
+           { opening_message: "周囲を支えながら...ご連絡しました！" }
+
+Bパターン: { profile_line: "プロフィールを拝見し、経済学部で..." }
+```
+
+**バックエンド → Gemini API**
+
+```
+{
+  system_instruction: { parts: [{ text: "禁止ルール等..." }] },
+  contents: [{ parts: [{ text: "プロンプト + 入力テキスト" }] }],
+  generationConfig: { temperature: 0.4, ... }
+}
+```
+
+### 21.4 ユーザー操作から保存までの流れ（Aパターン）
+
+```
+[ユーザー操作]          [システム処理]                    [状態変更]
+─────────────────────────────────────────────────────────────────────
+テキスト貼り付け   →   onChange発火                  →   pasteText更新
+       │
+       ▼
+Enter or ボタン    →   handleGenerate()開始          →   loading: true
+       │                                                 error: null
+       │
+       ▼
+       │           →   extractPrCandidate()          →   (内部処理)
+       │           →   judgePattern() → "A"          →   pattern: "A"
+       │                                                 prCharCount: 数値
+       ▼
+       │           →   fetch("/api/gemini", title)   →   (API待機)
+       │           ←   { title: "..." }              →   (内部変数)
+       │
+       ▼
+       │           →   fetch("/api/gemini", opening) →   (API待機)
+       │           ←   { opening_message: "..." }    →   (内部変数)
+       │
+       ▼
+       │           →   formatOpeningMessage()        →   (整形)
+       │           →   normalizeOpeningByPeriod()    →   openingMessageCharCount
+       │           →   buildGreetingA() + 結合       →   generatedMessage更新
+       │                                                 loading: false
+       ▼
+プレビュー表示     ←   generatedMessage表示
+       │
+       ▼
+タブ切り替え       →   setSelectedPreview()          →   selectedPreview更新
+       │
+       ▼
+コピーボタン       →   handleCopy()                  →   copyStatus: "コピーしました"
+       │           →   navigator.clipboard.writeText()
+       │           →   addToHistory()                →   history配列に追加
+       │           →   localStorage.setItem()        →   (永続化)
+       │
+       ▼
+1.5秒後            →   clearAllState()               →   全state初期化
+                                                         新規入力待ち状態へ
+```
+
+### 21.5 ユーザー操作から保存までの流れ（Bパターン）
+
+```
+[ユーザー操作]          [システム処理]                    [状態変更]
+─────────────────────────────────────────────────────────────────────
+テキスト貼り付け   →   onChange発火                  →   pasteText更新
+       │
+       ▼
+Enter or ボタン    →   handleGenerate()開始          →   loading: true
+       │
+       ▼
+       │           →   extractPrCandidate()          →   (内部処理)
+       │           →   judgePattern() → "B"          →   pattern: "B"
+       │                                                 prCharCount: 数値
+       ▼
+       │           →   extractFacultyName()          →   extractedFaculty更新
+       │
+       ▼
+       │           →   fetch("/api/gemini",          →   (API待機)
+       │                 b_profile_line)
+       │           ←   { profile_line: "..." }       →   (内部変数)
+       │
+       ▼
+       │           →   B_TEMPLATE_TEXT.replace()     →   generatedMessage更新
+       │                                                 loading: false
+       ▼
+プレビュー表示     ←   generatedMessage表示
+       │
+       ▼
+コピー＆保存       →   (Aパターンと同様)
+```
+
+### 21.6 状態管理の分類
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      状態の種類                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  【入力状態】                                                │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ pasteText: string                                    │   │
+│  │ └─ ユーザー入力のプロフィールテキスト                 │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  【処理結果状態】                                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ pattern: "A" | "B" | null                            │   │
+│  │ generatedMessage: string                             │   │
+│  │ prCharCount: number | null                           │   │
+│  │ openingMessageCharCount: number | null               │   │
+│  │ extractedFaculty: string | null                      │   │
+│  │ └─ 生成処理の結果として設定                          │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  【UI状態】                                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ loading: boolean                                     │   │
+│  │ error: string | null                                 │   │
+│  │ copyStatus: string | null                            │   │
+│  │ selectedPreview: "mobile" | "pc"                     │   │
+│  │ showHistory: boolean                                 │   │
+│  │ └─ UI表示制御                                        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  【永続化状態】                                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ history: HistoryRecord[]                             │   │
+│  │ └─ localStorage と同期                               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 21.7 状態遷移図
+
+```
+【初期状態】
+    │
+    │ ページ読み込み (useEffect)
+    ▼
+┌─────────────────┐
+│ history読み込み  │ ←── localStorage.getItem()
+└─────────────────┘
+    │
+    │ ユーザー入力
+    ▼
+┌─────────────────┐
+│ pasteText更新   │
+└─────────────────┘
+    │
+    │ 生成実行 (handleGenerate)
+    ▼
+┌─────────────────┐
+│ loading: true   │
+│ error: null     │
+│ pattern: null   │
+└─────────────────┘
+    │
+    │ A/B判定完了
+    ▼
+┌─────────────────┐
+│ pattern: A or B │
+│ prCharCount: n  │
+└─────────────────┘
+    │
+    ├─ 成功 ──────────────────┐
+    │                         │
+    ▼                         ▼
+┌─────────────────┐    ┌─────────────────┐
+│ generatedMessage│    │ error: "..."    │
+│ loading: false  │    │ loading: false  │
+└─────────────────┘    └─────────────────┘
+    │
+    │ コピー実行 (handleCopy)
+    ▼
+┌─────────────────┐
+│ copyStatus更新  │
+│ history追加     │ ──→ localStorage.setItem()
+└─────────────────┘
+    │
+    │ 1.5秒後 (clearAllState)
+    ▼
+┌─────────────────┐
+│ 全state初期化   │
+│ (入力待ち状態)  │
+└─────────────────┘
+```
+
+### 21.8 永続化フロー
+
+```
+【保存フロー】
+handleCopy()
+    │
+    ▼
+addToHistory(record)
+    │
+    ├─ 新規レコード作成
+    │   ├─ id: crypto.randomUUID()
+    │   ├─ timestamp: new Date().toLocaleString("ja-JP")
+    │   └─ その他フィールド
+    │
+    ├─ 配列先頭に追加
+    │
+    ├─ 100件に制限 (.slice(0, 100))
+    │
+    └─ saveHistory(newHistory)
+            │
+            ├─ setHistory() → React state更新
+            │
+            └─ localStorage.setItem() → 永続化
+                    │
+                    └─ キー: "offerbox_scout_history"
+                       値: JSON.stringify(history)
+
+
+【読み込みフロー】
+useEffect (初回レンダリング時)
+    │
+    ├─ localStorage.getItem("offerbox_scout_history")
+    │
+    ├─ JSON.parse()
+    │   └─ 失敗時: console.error()、空配列のまま
+    │
+    └─ setHistory() → React state更新
+
+
+【削除フロー】
+「履歴をクリア」ボタン
+    │
+    ├─ confirm("全ての履歴を削除しますか？")
+    │
+    └─ saveHistory([])
+            │
+            ├─ setHistory([]) → React state更新
+            │
+            └─ localStorage.setItem(..., "[]")
+```
+
+### 21.9 アーキテクチャまとめ
+
+| 観点 | 特徴 |
+|------|------|
+| データの流れ | 入力→抽出→判定→API→整形→結合→表示→コピー→保存 の一方向 |
+| API呼び出し | AパターンはAPI2回、Bパターンは1回。バックエンドでAPIキーを秘匿 |
+| 状態管理 | React useStateのみ。外部ライブラリなし。シンプルな単一コンポーネント構成 |
+| 永続化 | localStorageのみ。サーバー側DB不使用。ブラウザ/端末ごとに独立 |
+| エラー処理 | Aパターンはエラー表示、Bパターンはフォールバック（サイレント） |
