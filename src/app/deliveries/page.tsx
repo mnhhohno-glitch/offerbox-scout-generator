@@ -330,14 +330,16 @@ export default function DeliveriesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      {/* STAGINGバナー or ダミーデータバナー */}
-      <div className={`fixed top-0 left-0 right-0 z-50 text-center py-2 shadow-md ${useDummyData ? "bg-purple-500" : "bg-yellow-500"}`}>
-        <span className={`font-bold text-sm tracking-wider ${useDummyData ? "text-white" : "text-black"}`}>
-          {useDummyData ? "ダミーデータ表示中（UIプレビューモード）" : "STAGING 環境 - 本番ではありません"}
-        </span>
-      </div>
+      {/* STAGINGバナー or ダミーデータバナー（本番では非表示） */}
+      {(IS_STAGING || useDummyData) && (
+        <div className={`fixed top-0 left-0 right-0 z-50 text-center py-2 shadow-md ${useDummyData ? "bg-purple-500" : "bg-yellow-500"}`}>
+          <span className={`font-bold text-sm tracking-wider ${useDummyData ? "text-white" : "text-black"}`}>
+            {useDummyData ? "ダミーデータ表示中（UIプレビューモード）" : "STAGING 環境 - 本番ではありません"}
+          </span>
+        </div>
+      )}
 
-      <div className="mx-auto max-w-6xl pt-10">
+      <div className={`mx-auto max-w-6xl ${IS_STAGING || useDummyData ? "pt-10" : ""}`}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-800">配信履歴</h1>

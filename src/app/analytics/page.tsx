@@ -93,14 +93,16 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      {/* STAGINGバナー */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-center py-2 shadow-md">
-        <span className="font-bold text-black text-sm tracking-wider">
-          STAGING 環境 - 本番ではありません
-        </span>
-      </div>
+      {/* STAGINGバナー（本番では非表示） */}
+      {IS_STAGING && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-center py-2 shadow-md">
+          <span className="font-bold text-black text-sm tracking-wider">
+            STAGING 環境 - 本番ではありません
+          </span>
+        </div>
+      )}
 
-      <div className="mx-auto max-w-6xl pt-10">
+      <div className={`mx-auto max-w-6xl ${IS_STAGING ? "pt-10" : ""}`}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800">配信集計</h1>
           <div className="flex gap-2">
