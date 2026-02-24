@@ -406,7 +406,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPreview, setSelectedPreview] = useState<"mobile" | "pc">("mobile");
   const [history, setHistory] = useState<HistoryRecord[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
+  
+  // 履歴の展開状態と選択状態
+  const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
+  const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(new Set());
   
   // Gemini出力を一時保存（履歴保存時に使用）
   const [currentGeminiOutputs, setCurrentGeminiOutputs] = useState<{
@@ -1001,27 +1004,23 @@ export default function Home() {
         {/* 送信履歴セクション */}
         <div className="mt-8 border-t pt-6">
           <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="text-sm text-gray-600 hover:text-gray-800 flex items-center gap-2"
-            >
-              <span>{showHistory ? "▼" : "▶"}</span>
+            <span className="text-sm text-gray-600">
               送信履歴（{history.length}件）
-            </button>
-            <div className="flex items-center gap-2">
-              {history.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (confirm("全ての履歴を削除しますか？")) {
-                      saveHistory([]);
-                    }
-                  }}
-                  className="text-xs text-red-500 hover:text-red-700"
-                >
-                  履歴をクリア
-                </button>
-              )}
-            </div>
+            </span>
+            {selectedRecordIds.size > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm(`選択した${selectedRecordIds.size}件の履歴を削除しますか？`)) {
+                    const newHistory = history.filter(h => !selectedRecordIds.has(h.id));
+                    saveHistory(newHistory);
+                    setSelectedRecordIds(new Set());
+                  }
+                }}
+                className="text-xs text-red-500 hover:text-red-700"
+              >
+                選択した{selectedRecordIds.size}件を削除
+              </button>
+            )}
           </div>
 
           {/* 
@@ -1029,18 +1028,43 @@ export default function Home() {
             機能自体はhandleExportHistory, handleFileSelect等で利用可能
           */}
 
-          {showHistory && (
-            <div className="space-y-3">
-              {history.length === 0 ? (
-                <p className="text-sm text-gray-400">履歴がありません</p>
-              ) : (
-                history.map((record) => (
+          <div className="space-y-3">
+            {history.length === 0 ? (
+              <p className="text-sm text-gray-400">履歴がありません</p>
+            ) : (
+              history.map((record) => {
+                const isExpanded = expandedRecordId === record.id;
+                const isSelected = selectedRecordIds.has(record.id);
+                
+                return (
                   <div
                     key={record.id}
-                    className="rounded-lg bg-white p-3 shadow-sm border border-gray-100"
+                    className={`rounded-lg bg-white shadow-sm border ${isSelected ? "border-blue-400 bg-blue-50" : "border-gray-100"}`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
+                    {/* ヘッダー行（クリックで展開） */}
+                    <div
+                      onClick={() => setExpandedRecordId(isExpanded ? null : record.id)}
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* チェックボックス */}
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            const newSet = new Set(selectedRecordIds);
+                            if (isSelected) {
+                              newSet.delete(record.id);
+                            } else {
+                              newSet.add(record.id);
+                            }
+                            setSelectedRecordIds(newSet);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                        />
+                        {/* パターン表示 */}
                         <span
                           className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
                             record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
@@ -1048,27 +1072,74 @@ export default function Home() {
                         >
                           {record.pattern}
                         </span>
+                        {/* 日時 */}
                         <span className="text-xs text-gray-500">
                           {record.timestamp}
                         </span>
+                        {/* AI出力バッジ */}
                         {record.geminiOutputs && (
                           <span className="text-xs text-green-600">
                             [AI出力保存済]
                           </span>
                         )}
                       </div>
-                      <span className="text-xs text-gray-400">
-                        {record.prCharCount}文字
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-gray-400">
+                          {record.prCharCount}文字
+                        </span>
+                        {/* 削除ボタン */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("この履歴を削除しますか？")) {
+                              const newHistory = history.filter(h => h.id !== record.id);
+                              saveHistory(newHistory);
+                              if (expandedRecordId === record.id) {
+                                setExpandedRecordId(null);
+                              }
+                            }
+                          }}
+                          className="text-xs text-red-400 hover:text-red-600"
+                        >
+                          削除
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-600 truncate">
-                      {record.pasteText.slice(0, 80)}...
-                    </p>
+                    
+                    {/* 省略表示（閉じている時） */}
+                    {!isExpanded && (
+                      <div className="px-3 pb-3 pt-0">
+                        <p className="text-xs text-gray-600 truncate">
+                          {record.generatedMessage.slice(0, 80)}...
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* 詳細表示（展開時） */}
+                    {isExpanded && (
+                      <div className="px-3 pb-3 border-t border-gray-100">
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
+                            {record.generatedMessage}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(record.generatedMessage);
+                            alert("コピーしました");
+                          }}
+                          className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                        >
+                          コピー
+                        </button>
+                      </div>
+                    )}
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                );
+              })
+            )}
+          </div>
 
           {/* Staging: DBインポート機能 */}
           {IS_STAGING && history.length > 0 && (
