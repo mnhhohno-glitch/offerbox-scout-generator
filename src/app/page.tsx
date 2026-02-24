@@ -968,82 +968,92 @@ export default function Home() {
           </div>
         )}
 
-        {/* プレビュー */}
+        {/* スカウト文エディタ */}
         {generatedMessage && (
           <div className="mb-6">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-800">
-                生成文プレビュー
+                スカウト文（編集可能）
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {copyStatus && (
                   <span className="text-sm text-green-600">{copyStatus}</span>
                 )}
                 <button
                   onClick={handleCopy}
-                  className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-900"
+                  className="rounded-lg bg-gray-700 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 flex items-center gap-2"
                 >
-                  コピー
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  文章をコピー
                 </button>
               </div>
             </div>
 
-            {/* タブUI */}
-            <div className="mb-4 flex gap-2">
+            {/* 編集可能なテキストエリア（ダークUI） */}
+            <div className="rounded-lg bg-gray-800 p-4 shadow-lg">
+              <textarea
+                value={generatedMessage}
+                onChange={(e) => setGeneratedMessage(e.target.value)}
+                className="w-full bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none"
+                style={{
+                  minHeight: "400px",
+                  fontFamily: "inherit",
+                }}
+                rows={20}
+              />
+            </div>
+
+            {/* 文字数表示 */}
+            <div className="mt-2 text-right text-sm text-gray-500">
+              {generatedMessage.length}文字
+            </div>
+
+            {/* プレビュー切り替え（オプション） */}
+            <div className="mt-4">
               <button
-                onClick={() => setSelectedPreview("mobile")}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  selectedPreview === "mobile"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
+                onClick={() => setSelectedPreview(selectedPreview === "mobile" ? "pc" : "mobile")}
+                className="text-sm text-blue-600 hover:underline"
               >
-                スマホ版
-              </button>
-              <button
-                onClick={() => setSelectedPreview("pc")}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  selectedPreview === "pc"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                }`}
-              >
-                PC版
+                {selectedPreview === "mobile" ? "PC版でプレビュー" : "スマホ版でプレビュー"}
               </button>
             </div>
 
-            {/* スマホ版プレビュー */}
-            {selectedPreview === "mobile" && (
-              <div className="flex justify-center">
-                <div
-                  className="rounded-lg bg-white p-4 shadow"
-                  style={{
-                    width: "375px",
-                    maxWidth: "100%",
-                    fontSize: "16px",
-                  }}
-                >
-                  <pre
-                    className="font-sans leading-relaxed text-gray-800"
+            {/* プレビュー表示 */}
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 mb-2">
+                プレビュー（{selectedPreview === "mobile" ? "スマホ版" : "PC版"}）
+              </p>
+              {selectedPreview === "mobile" ? (
+                <div className="flex justify-center">
+                  <div
+                    className="rounded-lg bg-white p-4 shadow border"
                     style={{
-                      whiteSpace: "pre-wrap",
-                      overflowWrap: "anywhere",
+                      width: "375px",
+                      maxWidth: "100%",
+                      fontSize: "16px",
                     }}
                   >
-                    {generatedMessage}
+                    <pre
+                      className="font-sans leading-relaxed text-gray-800"
+                      style={{
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {generatedMessage}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg bg-white p-4 shadow border">
+                  <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">
+                    {formatForPC(generatedMessage)}
                   </pre>
                 </div>
-              </div>
-            )}
-
-            {/* PC版プレビュー */}
-            {selectedPreview === "pc" && (
-              <div className="rounded-lg bg-white p-4 shadow">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-gray-800">
-                  {formatForPC(generatedMessage)}
-                </pre>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
