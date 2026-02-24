@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatJSTDateTimeForCSV, formatJSTDateTimeForFilename } from "@/lib/time-utils";
+import { getGenderLabel } from "@/lib/extraction-utils";
 
 // 定数
 const MAX_EXPORT_ROWS = 20000;
@@ -127,7 +128,9 @@ export async function GET(request: NextRequest) {
       "配信日",
       "時間帯",
       "テンプレ",
-      "学生ID(7桁)",
+      "利用者番号",
+      "大学名",
+      "性別",
       "最終ログイン日時(JST)",
       "オファー状態",
       "状態日付(JST)",
@@ -146,6 +149,8 @@ export async function GET(request: NextRequest) {
         d.timeSlot,
         d.templateType,
         d.studentId7,
+        d.universityName,
+        getGenderLabel(d.gender),
         formatJSTDateTimeForCSV(d.lastLoginAt),
         getStatusLabel(d.offerStatus),
         formatJSTDateTimeForCSV(statusDate),

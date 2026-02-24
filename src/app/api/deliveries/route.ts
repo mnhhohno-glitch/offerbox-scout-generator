@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getJSTDate, getTimeSlot } from "@/lib/time-utils";
-import { extractStudentId7, extractLastLoginAt } from "@/lib/extraction-utils";
+import { extractStudentId7, extractLastLoginAt, extractUniversityName, extractGender } from "@/lib/extraction-utils";
 
 // POST: 配信レコード作成
 export async function POST(request: NextRequest) {
@@ -36,15 +36,21 @@ export async function POST(request: NextRequest) {
     const sendDate = getJSTDate(sentAtDate);
     const timeSlot = getTimeSlot(sentAtDate);
 
-    // 学生ID・ログイン日時を抽出（未提供なら sourceText から）
+    // 学生ID・ログイン日時・大学名・性別を抽出（未提供なら sourceText から）
     let studentId7 = providedStudentId7;
     let lastLoginAt = providedLastLoginAt ? new Date(providedLastLoginAt) : null;
+    let universityName: string | null = null;
+    let gender: string | null = null;
 
     if (!studentId7 && sourceText) {
       studentId7 = extractStudentId7(sourceText);
     }
     if (!lastLoginAt && sourceText) {
       lastLoginAt = extractLastLoginAt(sourceText);
+    }
+    if (sourceText) {
+      universityName = extractUniversityName(sourceText);
+      gender = extractGender(sourceText);
     }
 
     const delivery = await prisma.delivery.create({
@@ -56,6 +62,8 @@ export async function POST(request: NextRequest) {
         finalMessage,
         sourceText: sourceText || null,
         studentId7: studentId7 || null,
+        universityName: universityName || null,
+        gender: gender || null,
         lastLoginAt: lastLoginAt || null,
         offerStatus: "none",
       },

@@ -19,12 +19,28 @@ interface Delivery {
   finalMessage: string;
   sourceText: string | null;
   studentId7: string | null;
+  universityName: string | null;
+  gender: string | null;
   lastLoginAt: string | null;
   offerStatus: string;
   approvedAt: string | null;
   onHoldAt: string | null;
   cancelledAt: string | null;
   notes: string | null;
+}
+
+// 性別ラベル変換
+function getGenderLabel(gender: string | null): string {
+  switch (gender) {
+    case "male":
+      return "男性";
+    case "female":
+      return "女性";
+    case "other":
+      return "その他";
+    default:
+      return "-";
+  }
 }
 
 interface DeliveriesResponse {
@@ -55,6 +71,8 @@ function generateDummyData(count: number): Delivery[] {
   const statuses = ["none", "approved", "on_hold", "cancelled"];
   const templates = ["A", "B"];
   const timeSlots = ["00-05", "06-11", "12-17", "18-23"];
+  const universities = ["東京大学", "京都大学", "早稲田大学", "慶應義塾大学", "明治大学", "青山学院大学", "立教大学", "中央大学", "法政大学", "日本大学"];
+  const genders: ("male" | "female" | "other")[] = ["male", "female", "other"];
   const faculties = ["経済学部", "経営学部", "法学部", "工学部", "理学部", "文学部", "教育学部"];
   
   return Array.from({ length: count }, (_, i) => {
@@ -66,6 +84,8 @@ function generateDummyData(count: number): Delivery[] {
     const templateType = templates[Math.floor(Math.random() * templates.length)];
     const status = statuses[Math.floor(Math.random() * statuses.length)];
     const faculty = faculties[Math.floor(Math.random() * faculties.length)];
+    const university = universities[Math.floor(Math.random() * universities.length)];
+    const gender = genders[Math.floor(Math.random() * genders.length)];
     
     return {
       id: `dummy-${i}-${Date.now()}`,
@@ -75,10 +95,12 @@ function generateDummyData(count: number): Delivery[] {
       timeSlot: timeSlots[Math.floor(date.getHours() / 6)],
       templateType,
       finalMessage: templateType === "A" 
-        ? `【${faculty}で学ばれている点に興味を持ちました】\n\n初めまして。\nスタートライン新卒採用責任者の船戸です。\n\nプロフィールを拝見し、${faculty}で学ばれている内容に興味を持ちました。\nぜひ一度お話したくご連絡しました！\n\n...（以下固定文）`
-        : `◆就活相談OK｜カジュアル面談\n\nはじめまして。\n株式会社スタートライン 新卒採用責任者の船戸です。\n\nプロフィールを拝見し、${faculty}で学ばれている点に興味を持ち、ご連絡しました。\n\n...（以下固定文）`,
-      sourceText: `氏名: テスト太郎${i + 1}\n学部: ${faculty}\nID: ${String(1000000 + i).slice(0, 7)}\n最終ログイン: ${date.toLocaleDateString("ja-JP")} ${date.toLocaleTimeString("ja-JP").slice(0, 5)}`,
+        ? `【${faculty}で学ばれている点に興味を持ちました】\n\n初めまして。\nスタートライン新卒採用責任者の船戸です。\n\nプロフィールを拝見し、${faculty}で学ばれている内容に興味を持ちました。\nぜひ一度お話したくご連絡しました！\n\n当社は「スタッフを大切にする企業」として、社員がイキイキと働ける環境づくりに力を入れています。\n\nまずは気軽にお話ししませんか？\nカジュアル面談でお待ちしています！`
+        : `◆就活相談OK｜カジュアル面談\n\nはじめまして。\n株式会社スタートライン 新卒採用責任者の船戸です。\n\nプロフィールを拝見し、${faculty}で学ばれている点に興味を持ち、ご連絡しました。\n\n就活やキャリアについて、何でも相談してください。\nカジュアルにお話ししましょう！`,
+      sourceText: `氏名: テスト太郎${i + 1}\n学部: ${faculty}\n大学名: ${university}\n性別: ${gender === "male" ? "男性" : gender === "female" ? "女性" : "その他"}\nID: ${String(1000000 + i).slice(0, 7)}\n最終ログイン: ${date.toLocaleDateString("ja-JP")} ${date.toLocaleTimeString("ja-JP").slice(0, 5)}`,
       studentId7: String(1000000 + i).slice(0, 7),
+      universityName: university,
+      gender: gender,
       lastLoginAt: new Date(date.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
       offerStatus: status,
       approvedAt: status === "approved" ? date.toISOString() : null,
@@ -107,6 +129,9 @@ export default function DeliveriesPage() {
 
   // コピー状態
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // スカウト文展開状態
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // CSVエクスポート状態
   const [exporting, setExporting] = useState(false);
@@ -515,68 +540,92 @@ export default function DeliveriesPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-3 py-2 text-left">配信日時</th>
-                  <th className="px-3 py-2 text-left">時間帯</th>
-                  <th className="px-3 py-2 text-center">テンプレ</th>
-                  <th className="px-3 py-2 text-left">学生ID</th>
-                  <th className="px-3 py-2 text-left">ログイン日時</th>
-                  <th className="px-3 py-2 text-center">ステータス</th>
-                  <th className="px-3 py-2 text-center">操作</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">配信日時</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">利用者番号</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">大学名</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">性別</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">テンプレ</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">ステータス</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">状態日付</th>
+                  <th className="px-3 py-2 text-left min-w-[200px]">スカウト文</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">操作</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-t hover:bg-gray-50">
-                    <td className="px-3 py-2">{formatDateTime(item.sentAt)}</td>
-                    <td className="px-3 py-2">{item.timeSlot}</td>
-                    <td className="px-3 py-2 text-center">
-                      <span
-                        className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                          item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
-                        }`}
-                      >
-                        {item.templateType}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 font-mono">{item.studentId7 || "-"}</td>
-                    <td className="px-3 py-2">{formatDateTime(item.lastLoginAt)}</td>
-                    <td className="px-3 py-2">
-                      <select
-                        value={item.offerStatus}
-                        onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          STATUS_OPTIONS.find((o) => o.value === item.offerStatus)?.color ||
-                          "bg-gray-200"
-                        }`}
-                      >
-                        {STATUS_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                      {item.offerStatus !== "none" && (
-                        <div className="text-xs text-gray-400 mt-1">
-                          {item.offerStatus === "approved" && formatDateTime(item.approvedAt)}
-                          {item.offerStatus === "on_hold" && formatDateTime(item.onHoldAt)}
-                          {item.offerStatus === "cancelled" && formatDateTime(item.cancelledAt)}
+                {items.map((item) => {
+                  const isExpanded = expandedId === item.id;
+                  const statusDate = item.offerStatus === "approved" ? item.approvedAt
+                    : item.offerStatus === "on_hold" ? item.onHoldAt
+                    : item.offerStatus === "cancelled" ? item.cancelledAt
+                    : null;
+                  const messagePreview = item.finalMessage.length > 100
+                    ? item.finalMessage.slice(0, 100) + "..."
+                    : item.finalMessage;
+
+                  return (
+                    <tr key={item.id} className="border-t hover:bg-gray-50 align-top">
+                      <td className="px-3 py-2 whitespace-nowrap">{formatDateTime(item.sentAt)}</td>
+                      <td className="px-3 py-2 font-mono whitespace-nowrap">{item.studentId7 || "-"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{item.universityName || "-"}</td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap">{getGenderLabel(item.gender)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
+                            item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
+                          }`}
+                        >
+                          {item.templateType}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={item.offerStatus}
+                          onChange={(e) => handleStatusChange(item.id, e.target.value)}
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            STATUS_OPTIONS.find((o) => o.value === item.offerStatus)?.color ||
+                            "bg-gray-200"
+                          }`}
+                        >
+                          {STATUS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                        {statusDate ? formatDateTime(statusDate) : "-"}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="max-w-xs">
+                          <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
+                            {isExpanded ? item.finalMessage : messagePreview}
+                          </p>
+                          {item.finalMessage.length > 100 && (
+                            <button
+                              onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                              className="mt-1 text-xs text-blue-600 hover:underline"
+                            >
+                              {isExpanded ? "▲ 閉じる" : "▼ 全文表示"}
+                            </button>
+                          )}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <button
-                        onClick={() => handleCopy(item.finalMessage, item.id)}
-                        className={`px-2 py-1 text-xs rounded ${
-                          copiedId === item.id
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
-                      >
-                        {copiedId === item.id ? "コピー済" : "コピー"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <button
+                          onClick={() => handleCopy(item.finalMessage, item.id)}
+                          className={`px-2 py-1 text-xs rounded ${
+                            copiedId === item.id
+                              ? "bg-green-500 text-white"
+                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                          }`}
+                        >
+                          {copiedId === item.id ? "コピー済" : "コピー"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

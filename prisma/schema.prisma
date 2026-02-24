@@ -17,6 +17,8 @@ model Delivery {
   finalMessage  String    @map("final_message")
   sourceText    String?   @map("source_text")
   studentId7    String?   @map("student_id7")
+  universityName String?  @map("university_name")
+  gender        String?   @map("gender")
   lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz
   offerStatus   String    @default("none") @map("offer_status")
   approvedAt    DateTime? @map("approved_at") @db.Timestamptz

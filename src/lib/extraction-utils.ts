@@ -1,4 +1,4 @@
-// 学生ID7桁と最終ログイン日時の抽出ユーティリティ
+// 学生ID7桁、最終ログイン日時、大学名、性別の抽出ユーティリティ
 
 export function extractStudentId7(text: string): string | null {
   if (!text) return null;
@@ -50,5 +50,60 @@ function parseJSTDateTime(str: string): Date | null {
     return date;
   } catch {
     return null;
+  }
+}
+
+// 大学名の抽出
+export function extractUniversityName(text: string): string | null {
+  if (!text) return null;
+
+  // パターン1: "大学名: ○○大学" や "大学：○○大学"
+  const pattern1 = /(大学名|学校名)\s*[:：]\s*([^\n\r]+)/;
+  const match1 = text.match(pattern1);
+  if (match1) {
+    return match1[2].trim();
+  }
+
+  // パターン2: "○○大学" という形式（大学で終わる文字列）
+  const pattern2 = /([^\s\n\r]+大学)/;
+  const match2 = text.match(pattern2);
+  if (match2) {
+    return match2[1].trim();
+  }
+
+  return null;
+}
+
+// 性別の抽出
+export type Gender = "male" | "female" | "other" | "unknown";
+
+export function extractGender(text: string): Gender {
+  if (!text) return "unknown";
+
+  // パターン: "性別: 男性" や "性別：女性"
+  const pattern = /(性別)\s*[:：]?\s*(男性|女性|その他|男|女)/;
+  const match = text.match(pattern);
+  
+  if (match) {
+    const value = match[2];
+    if (value === "男性" || value === "男") return "male";
+    if (value === "女性" || value === "女") return "female";
+    if (value === "その他") return "other";
+  }
+
+  return "unknown";
+}
+
+// 性別ラベル変換
+export function getGenderLabel(gender: string | null): string {
+  switch (gender) {
+    case "male":
+      return "男性";
+    case "female":
+      return "女性";
+    case "other":
+      return "その他";
+    default:
+      return "-";
   }
 }

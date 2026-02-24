@@ -1024,58 +1024,10 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Export/Importステータス */}
-          {importStatus && (
-            <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-3">
-              <p className="text-sm text-blue-700">{importStatus}</p>
-            </div>
-          )}
-
-          {/* Importプレビュー */}
-          {importPreview && (
-            <div className="mb-4 rounded-lg bg-yellow-50 border border-yellow-300 p-4">
-              <p className="text-sm text-yellow-800 mb-3">
-                <strong>{importPreview.count}件</strong>の履歴をインポートしますか？
-                <br />
-                <span className="text-xs text-yellow-600">最終日時: {importPreview.lastDate}</span>
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleConfirmImport}
-                  className="px-3 py-1 text-xs font-medium bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                >
-                  インポート実行
-                </button>
-                <button
-                  onClick={handleCancelImport}
-                  className="px-3 py-1 text-xs font-medium bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-                >
-                  キャンセル
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Export/Importボタン */}
-          <div className="flex items-center gap-2 mb-4">
-            <button
-              onClick={handleExportHistory}
-              disabled={history.length === 0}
-              className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded border border-gray-300 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              履歴を書き出し（JSON）
-            </button>
-            <label className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded border border-gray-300 hover:bg-gray-200 cursor-pointer">
-              履歴を読み込み（JSON）
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </label>
-          </div>
+          {/* 
+            JSON Export/Import機能は管理者用途として保持（UIからは非表示）
+            機能自体はhandleExportHistory, handleFileSelect等で利用可能
+          */}
 
           {showHistory && (
             <div className="space-y-3">
