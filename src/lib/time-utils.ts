@@ -31,3 +31,26 @@ export function formatJSTDateTime(date: Date): string {
   const min = String(jst.getUTCMinutes()).padStart(2, "0");
   return `${y}/${m}/${d} ${h}:${min}`;
 }
+
+// CSV用フォーマット (YYYY-MM-DD HH:mm)
+export function formatJSTDateTimeForCSV(date: Date | null): string {
+  if (!date) return "";
+  const jst = toJST(date);
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jst.getUTCDate()).padStart(2, "0");
+  const h = String(jst.getUTCHours()).padStart(2, "0");
+  const min = String(jst.getUTCMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d} ${h}:${min}`;
+}
+
+// ファイル名用フォーマット (YYYYMMDD_HHmm)
+export function formatJSTDateTimeForFilename(): string {
+  const jst = toJST(new Date());
+  const y = jst.getUTCFullYear();
+  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(jst.getUTCDate()).padStart(2, "0");
+  const h = String(jst.getUTCHours()).padStart(2, "0");
+  const min = String(jst.getUTCMinutes()).padStart(2, "0");
+  return `${y}${m}${d}_${h}${min}`;
+}

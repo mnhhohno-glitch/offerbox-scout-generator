@@ -6,6 +6,9 @@ import Link from "next/link";
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const IS_STAGING = APP_ENV === "staging";
 
+// CSV出力の警告閾値
+const CSV_EXPORT_WARNING_THRESHOLD = 2000;
+
 interface Delivery {
   id: string;
   createdAt: string;
@@ -104,6 +107,10 @@ export default function DeliveriesPage() {
 
   // コピー状態
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // CSVエクスポート状態
+  const [exporting, setExporting] = useState(false);
+  const [showExportWarning, setShowExportWarning] = useState(false);
 
   const pageSize = 50;
   const totalPages = Math.ceil(total / pageSize);
@@ -213,6 +220,66 @@ export default function DeliveriesPage() {
     } catch {
       alert("コピーに失敗しました");
     }
+  };
+
+  // CSVエクスポート
+  const handleExportCSV = async () => {
+    if (useDummyData) {
+      alert("ダミーデータはCSVエクスポートできません");
+      return;
+    }
+
+    // 件数チェック（警告）
+    if (total > CSV_EXPORT_WARNING_THRESHOLD && !showExportWarning) {
+      setShowExportWarning(true);
+      return;
+    }
+
+    setExporting(true);
+    setShowExportWarning(false);
+
+    try {
+      const params = new URLSearchParams();
+      if (sendDateFrom) params.set("sendDateFrom", sendDateFrom);
+      if (sendDateTo) params.set("sendDateTo", sendDateTo);
+      if (timeSlot) params.set("timeSlot", timeSlot);
+      if (templateType) params.set("templateType", templateType);
+      if (studentId7) params.set("studentId7", studentId7);
+      if (offerStatus) params.set("offerStatus", offerStatus);
+
+      const res = await fetch(`/api/deliveries/export.csv?${params.toString()}`);
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "CSVエクスポートに失敗しました");
+      }
+
+      // Blobとしてダウンロード
+      const blob = await res.blob();
+      const contentDisposition = res.headers.get("Content-Disposition");
+      let filename = "deliveries.csv";
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (match) filename = match[1];
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "CSVエクスポートに失敗しました");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleCancelExport = () => {
+    setShowExportWarning(false);
   };
 
   if (!IS_STAGING && !useDummyData) {
@@ -367,9 +434,43 @@ export default function DeliveriesPage() {
               >
                 クリア
               </button>
+              {/* CSV出力ボタン */}
+              <button
+                onClick={handleExportCSV}
+                disabled={exporting || total === 0}
+                className="px-4 py-1.5 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {exporting ? "出力中..." : "CSV出力（Excel）"}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* CSVエクスポート警告 */}
+        {showExportWarning && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 rounded">
+            <p className="text-yellow-800 font-medium mb-2">
+              件数が多いため、エクスポートに時間がかかる可能性があります
+            </p>
+            <p className="text-sm text-yellow-700 mb-3">
+              対象: {total.toLocaleString()}件（警告閾値: {CSV_EXPORT_WARNING_THRESHOLD.toLocaleString()}件）
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportCSV}
+                className="px-4 py-1.5 text-sm bg-yellow-600 text-white rounded hover:bg-yellow-700"
+              >
+                続行する
+              </button>
+              <button
+                onClick={handleCancelExport}
+                className="px-4 py-1.5 text-sm bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* エラー */}
         {error && (
