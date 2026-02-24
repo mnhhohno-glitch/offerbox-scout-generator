@@ -1072,25 +1072,25 @@ export default function Home() {
           {/* 検索フィルタ */}
           {history.length > 0 && (
             <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="flex gap-3">
+                <div className="w-1/4">
                   <label className="block text-xs text-gray-600 mb-1">ID検索</label>
                   <input
                     type="text"
                     value={searchIdQuery}
                     onChange={(e) => setSearchIdQuery(e.target.value)}
                     placeholder="7桁IDで検索"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div>
+                <div className="flex-1">
                   <label className="block text-xs text-gray-600 mb-1">フリー検索</label>
                   <input
                     type="text"
                     value={searchFreeQuery}
                     onChange={(e) => setSearchFreeQuery(e.target.value)}
                     placeholder="大学名、学部など"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1234,7 +1234,12 @@ export default function Home() {
                             saveHistory(newHistory);
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          className={`ml-3 px-2 py-1 text-xs rounded font-medium ${statusOption?.color || "bg-gray-200"}`}
+                          className={`ml-3 px-3 py-1.5 text-xs rounded bg-white border border-gray-300 font-medium text-gray-700 ${
+                            currentStatus === "offered" ? "border-b-2 border-b-blue-500" :
+                            currentStatus === "applied" ? "border-b-2 border-b-green-500" :
+                            currentStatus === "on_hold" ? "border-b-2 border-b-yellow-500" :
+                            currentStatus === "declined" ? "border-b-2 border-b-red-500" : ""
+                          }`}
                         >
                           {OFFER_STATUS_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>

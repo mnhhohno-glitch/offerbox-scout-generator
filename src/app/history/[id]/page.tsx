@@ -194,21 +194,22 @@ export default function HistoryDetailPage() {
           {/* オファーステータス */}
           <div className="mb-6">
             <h2 className="text-sm font-bold text-gray-800 mb-3">オファーステータス</h2>
-            <div className="flex gap-2">
-              {OFFER_STATUS_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => handleStatusChange(opt.value)}
-                  className={`px-4 py-2 text-sm rounded font-medium transition-all ${
-                    currentStatus === opt.value
-                      ? opt.color + " ring-2 ring-offset-2 ring-gray-400"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
+            <select
+              value={currentStatus}
+              onChange={(e) => handleStatusChange(e.target.value as OfferStatus)}
+              className={`px-4 py-2 text-sm rounded bg-white border border-gray-300 font-medium text-gray-700 ${
+                currentStatus === "offered" ? "border-b-2 border-b-blue-500" :
+                currentStatus === "applied" ? "border-b-2 border-b-green-500" :
+                currentStatus === "on_hold" ? "border-b-2 border-b-yellow-500" :
+                currentStatus === "declined" ? "border-b-2 border-b-red-500" : ""
+              }`}
+            >
+              {OFFER_STATUS_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
                   {opt.label}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* 学生情報 */}
@@ -258,7 +259,7 @@ export default function HistoryDetailPage() {
               <h2 className="text-sm font-bold text-gray-800">スカウト文</h2>
               <button
                 onClick={handleCopy}
-                className={`px-3 py-1 text-xs rounded ${
+                className={`px-4 py-2 text-sm rounded font-medium ${
                   copyStatus
                     ? "bg-green-500 text-white"
                     : "bg-blue-500 text-white hover:bg-blue-600"
