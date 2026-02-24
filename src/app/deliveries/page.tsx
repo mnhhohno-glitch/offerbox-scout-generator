@@ -5,6 +5,7 @@ import Link from "next/link";
 
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const IS_STAGING = APP_ENV === "staging";
+const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || IS_STAGING;
 
 // CSV出力の警告閾値
 const CSV_EXPORT_WARNING_THRESHOLD = 2000;
@@ -176,7 +177,7 @@ export default function DeliveriesPage() {
       setItems(dummyItems.slice(start, start + pageSize));
       setTotal(dummyItems.length);
       setLoading(false);
-    } else if (IS_STAGING) {
+    } else if (DB_ENABLED) {
       fetchDeliveries();
     }
   }, [fetchDeliveries, useDummyData, page]);
@@ -307,12 +308,12 @@ export default function DeliveriesPage() {
     setShowExportWarning(false);
   };
 
-  if (!IS_STAGING && !useDummyData) {
+  if (!DB_ENABLED && !useDummyData) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="mx-auto max-w-6xl">
           <h1 className="mb-6 text-2xl font-bold text-gray-800">配信履歴</h1>
-          <p className="text-gray-600 mb-4">この機能はstaging環境でのみ利用可能です。</p>
+          <p className="text-gray-600 mb-4">データベースが設定されていません。</p>
           <button
             onClick={handleLoadDummyData}
             className="px-4 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 mr-2"

@@ -15,6 +15,7 @@ import {
 // 環境変数からアプリ環境を取得
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const IS_STAGING = APP_ENV === "staging";
+const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || IS_STAGING;
 
 // 履歴スキーマバージョン（互換性管理用）
 const HISTORY_SCHEMA_VERSION = 4;
@@ -808,8 +809,8 @@ export default function Home() {
       
       console.log("履歴に保存しました:", savedRecord.id);
 
-      // staging環境ではDBにも保存
-      if (IS_STAGING) {
+      // DB有効時はDBにも保存
+      if (DB_ENABLED) {
         try {
           const dbRes = await fetch("/api/deliveries", {
             method: "POST",
@@ -865,7 +866,7 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-gray-800">
             OfferBox スカウト文生成
           </h1>
-          {IS_STAGING && (
+          {DB_ENABLED && (
             <div className="flex gap-2">
               <a
                 href="/deliveries"
@@ -1279,11 +1280,11 @@ export default function Home() {
             )}
           </div>
 
-          {/* Staging: DBインポート機能 */}
-          {IS_STAGING && history.length > 0 && (
+          {/* DB有効時: DBインポート機能 */}
+          {DB_ENABLED && history.length > 0 && (
             <div className="mt-6 pt-4 border-t border-dashed">
               <p className="text-xs text-gray-500 mb-2">
-                [Staging専用] ローカル履歴をDBに一括投入
+                ローカル履歴をDBに一括投入
               </p>
               <button
                 onClick={async () => {

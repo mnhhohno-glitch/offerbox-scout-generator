@@ -4,8 +4,9 @@ import { getJSTDate, getTimeSlot } from "@/lib/time-utils";
 import { extractStudentId7, extractLastLoginAt } from "@/lib/extraction-utils";
 import crypto from "crypto";
 
-// staging環境のみ有効
+// DB有効時のみ動作
 const IS_STAGING = process.env.NEXT_PUBLIC_APP_ENV === "staging";
+const DB_ENABLED = process.env.DATABASE_URL ? true : IS_STAGING;
 
 interface ImportRecord {
   sentAt?: string;
@@ -28,12 +29,12 @@ function generateHash(text: string): string {
   return crypto.createHash("md5").update(text.slice(0, 200)).digest("hex").slice(0, 16);
 }
 
-// POST: staging DBへ一括投入（管理用）
+// POST: DBへ一括投入（管理用）
 export async function POST(request: NextRequest) {
-  // staging環境のみ許可
-  if (!IS_STAGING) {
+  // DB有効時のみ許可
+  if (!DB_ENABLED) {
     return NextResponse.json(
-      { error: "この機能はstaging環境でのみ利用可能です" },
+      { error: "データベースが設定されていません" },
       { status: 403 }
     );
   }

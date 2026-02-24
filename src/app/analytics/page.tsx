@@ -5,6 +5,7 @@ import Link from "next/link";
 
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const IS_STAGING = APP_ENV === "staging";
+const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || IS_STAGING;
 
 interface AnalyticsRow {
   sendDate: string;
@@ -76,12 +77,12 @@ export default function AnalyticsPage() {
   const totalA = rows.filter((r) => r.templateType === "A").reduce((sum, r) => sum + r.count, 0);
   const totalB = rows.filter((r) => r.templateType === "B").reduce((sum, r) => sum + r.count, 0);
 
-  if (!IS_STAGING) {
+  if (!DB_ENABLED) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="mx-auto max-w-6xl">
           <h1 className="mb-6 text-2xl font-bold text-gray-800">配信集計</h1>
-          <p className="text-gray-600">この機能はstaging環境でのみ利用可能です。</p>
+          <p className="text-gray-600">データベースが設定されていません。</p>
           <Link href="/" className="text-blue-600 hover:underline mt-4 inline-block">
             ← トップに戻る
           </Link>
