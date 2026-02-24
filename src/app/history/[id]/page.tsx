@@ -59,6 +59,9 @@ interface HistoryRecord {
 
 const HISTORY_STORAGE_KEY = "offerbox_scout_history";
 
+// カード固定高さ
+const CARD_HEIGHT = 600;
+
 export default function HistoryDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -66,8 +69,9 @@ export default function HistoryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [scoutSaveStatus, setScoutSaveStatus] = useState<string | null>(null);
 
-  // 編集用state
+  // 編集用state（学生情報）
   const [editStudentId7, setEditStudentId7] = useState("");
   const [editUniversityName, setEditUniversityName] = useState("");
   const [editFacultyName, setEditFacultyName] = useState("");
@@ -75,6 +79,9 @@ export default function HistoryDetailPage() {
   const [editPrefecture, setEditPrefecture] = useState("");
   const [editGender, setEditGender] = useState("");
   const [editPattern, setEditPattern] = useState<"A" | "B">("A");
+
+  // 編集用state（スカウト文）
+  const [editScoutMessage, setEditScoutMessage] = useState("");
 
   useEffect(() => {
     const loadRecord = () => {
@@ -105,6 +112,7 @@ export default function HistoryDetailPage() {
         setEditPrefecture(found.prefecture || "");
         setEditGender(found.gender || "unknown");
         setEditPattern(found.pattern);
+        setEditScoutMessage(found.generatedMessage || "");
       }
       
       setLoading(false);
@@ -114,9 +122,9 @@ export default function HistoryDetailPage() {
   }, [params.id]);
 
   const handleCopy = async () => {
-    if (!record) return;
+    if (!editScoutMessage) return;
     try {
-      await navigator.clipboard.writeText(record.generatedMessage);
+      await navigator.clipboard.writeText(editScoutMessage);
       setCopyStatus("コピーしました");
       setTimeout(() => setCopyStatus(null), 2000);
     } catch {
@@ -198,10 +206,35 @@ export default function HistoryDetailPage() {
     }
   };
 
+  const handleSaveScoutMessage = () => {
+    if (!record) return;
+
+    try {
+      const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (stored) {
+        const history: HistoryRecord[] = JSON.parse(stored);
+        const updatedRecord = {
+          ...record,
+          generatedMessage: editScoutMessage,
+        };
+        const newHistory = history.map((h) =>
+          h.id === record.id ? updatedRecord : h
+        );
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
+        setRecord(updatedRecord);
+        setScoutSaveStatus("保存しました");
+        setTimeout(() => setScoutSaveStatus(null), 2000);
+      }
+    } catch (err) {
+      console.error("保存エラー:", err);
+      alert("保存に失敗しました");
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="mx-auto max-w-6xl">
+      <div className="min-h-screen bg-gray-100 py-8 px-4">
+        <div className="mx-auto max-w-7xl">
           <p className="text-gray-500">読み込み中...</p>
         </div>
       </div>
@@ -210,8 +243,8 @@ export default function HistoryDetailPage() {
 
   if (!record) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="mx-auto max-w-6xl">
+      <div className="min-h-screen bg-gray-100 py-8 px-4">
+        <div className="mx-auto max-w-7xl">
           <p className="text-gray-500 mb-4">履歴が見つかりませんでした</p>
           <Link href="/" className="text-blue-600 hover:underline">
             ← トップに戻る
@@ -224,48 +257,75 @@ export default function HistoryDetailPage() {
   const currentStatus = record.offerStatus || "offered";
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4">
-      <div className="mx-auto max-w-6xl">
+    <div className="min-h-screen bg-gray-100 py-6 px-4 lg:px-8">
+      <div className="mx-auto max-w-7xl">
         {/* ヘッダー */}
-        <div className="flex items-center justify-between mb-4">
-          <Link href="/" className="text-blue-600 hover:underline text-sm">
-            ← 戻る
+        <div className="flex items-center justify-between mb-6 px-1">
+          <Link 
+            href="/" 
+            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm font-medium"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            戻る
           </Link>
           <button
             onClick={handleDelete}
-            className="text-xs text-red-500 hover:text-red-700"
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-md transition-colors"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
             この履歴を削除
           </button>
         </div>
 
-        {/* 2カラムレイアウト */}
-        <div className="flex gap-6" style={{ minHeight: "calc(100vh - 120px)" }}>
+        {/* 2カラムレイアウト（レスポンシブ） */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 左カラム: 学生情報 */}
-          <div className="w-1/2 bg-white rounded-lg shadow p-5 flex flex-col">
-            {/* タイトル行 */}
-            <div className="flex items-center gap-3 mb-4 pb-3 border-b">
-              <span
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white ${
-                  editPattern === "A" ? "bg-green-500" : "bg-orange-500"
+          <div 
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col"
+            style={{ height: `${CARD_HEIGHT}px` }}
+          >
+            {/* カードヘッダー */}
+            <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4">
+              <div className="flex items-center gap-3">
+                <span
+                  className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm ${
+                    editPattern === "A" ? "bg-green-500" : "bg-orange-500"
+                  }`}
+                >
+                  {editPattern}
+                </span>
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">学生情報</h2>
+                  <p className="text-xs text-gray-500">{record.timestamp}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSaveStudentInfo}
+                className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                  saveStatus
+                    ? "bg-green-500 text-white"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
                 }`}
               >
-                {editPattern}
-              </span>
-              <p className="text-sm text-gray-500">{record.timestamp}</p>
+                {saveStatus || "保存"}
+              </button>
             </div>
 
             {/* オファーステータス */}
-            <div className="mb-4">
-              <h2 className="text-sm font-bold text-gray-800 mb-2">オファーステータス</h2>
+            <div className="mb-5">
+              <label className="block text-xs font-medium text-gray-600 mb-2">オファーステータス</label>
               <select
                 value={currentStatus}
                 onChange={(e) => handleStatusChange(e.target.value as OfferStatus)}
-                className={`px-3 py-2 text-sm rounded bg-white border border-gray-300 font-medium text-gray-900 ${
-                  currentStatus === "offered" ? "border-b-2 border-b-blue-500" :
-                  currentStatus === "applied" ? "border-b-2 border-b-green-500" :
-                  currentStatus === "on_hold" ? "border-b-2 border-b-yellow-500" :
-                  currentStatus === "declined" ? "border-b-2 border-b-red-500" : ""
+                className={`px-3 py-2 text-sm rounded-lg bg-white border-2 font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  currentStatus === "offered" ? "border-blue-400" :
+                  currentStatus === "applied" ? "border-green-400" :
+                  currentStatus === "on_hold" ? "border-yellow-400" :
+                  currentStatus === "declined" ? "border-red-400" : "border-gray-300"
                 }`}
               >
                 {OFFER_STATUS_OPTIONS.map(opt => (
@@ -276,25 +336,12 @@ export default function HistoryDetailPage() {
               </select>
             </div>
 
-            {/* 学生情報（編集可能） */}
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-sm font-bold text-gray-800">学生情報</h2>
-                <button
-                  onClick={handleSaveStudentInfo}
-                  className={`px-4 py-1.5 text-sm rounded font-medium ${
-                    saveStatus
-                      ? "bg-green-500 text-white"
-                      : "bg-blue-500 text-white hover:bg-blue-600"
-                  }`}
-                >
-                  {saveStatus || "保存"}
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
+            {/* 学生情報フォーム（スクロール可能） */}
+            <div className="flex-1 overflow-y-auto pr-2">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 {/* ID（7桁数字） */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">ID（7桁）</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">ID（7桁）</label>
                   <input
                     type="text"
                     value={editStudentId7}
@@ -303,53 +350,53 @@ export default function HistoryDetailPage() {
                       setEditStudentId7(val);
                     }}
                     placeholder="1234567"
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-blue-600 font-mono font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-blue-600 font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 
-                {/* 大学名（テキスト） */}
+                {/* 大学名 */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">大学名</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">大学名</label>
                   <input
                     type="text"
                     value={editUniversityName}
                     onChange={(e) => setEditUniversityName(e.target.value)}
                     placeholder="○○大学"
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 
-                {/* 学部（テキスト） */}
+                {/* 学部 */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">学部</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">学部</label>
                   <input
                     type="text"
                     value={editFacultyName}
                     onChange={(e) => setEditFacultyName(e.target.value)}
                     placeholder="○○学部"
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 
-                {/* 学科（テキスト） */}
+                {/* 学科 */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">学科</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">学科</label>
                   <input
                     type="text"
                     value={editDepartmentName}
                     onChange={(e) => setEditDepartmentName(e.target.value)}
                     placeholder="○○学科"
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
                 
-                {/* 都道府県（選択） */}
+                {/* 都道府県 */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">都道府県</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">都道府県</label>
                   <select
                     value={editPrefecture}
                     onChange={(e) => setEditPrefecture(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">選択してください</option>
                     {PREFECTURES.map(pref => (
@@ -358,13 +405,13 @@ export default function HistoryDetailPage() {
                   </select>
                 </div>
                 
-                {/* 性別（選択） */}
+                {/* 性別 */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">性別</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">性別</label>
                   <select
                     value={editGender}
                     onChange={(e) => setEditGender(e.target.value)}
-                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">選択してください</option>
                     {GENDER_OPTIONS.map(opt => (
@@ -373,13 +420,13 @@ export default function HistoryDetailPage() {
                   </select>
                 </div>
                 
-                {/* テンプレ（選択） */}
+                {/* テンプレ */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">テンプレ</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">テンプレ</label>
                   <select
                     value={editPattern}
                     onChange={(e) => setEditPattern(e.target.value as "A" | "B")}
-                    className={`w-full px-2 py-1.5 border border-gray-300 rounded font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                       editPattern === "A" ? "text-green-600" : "text-orange-600"
                     }`}
                   >
@@ -390,8 +437,8 @@ export default function HistoryDetailPage() {
                 
                 {/* 文字数（表示のみ） */}
                 <div>
-                  <label className="block text-gray-500 text-xs mb-1">文字数</label>
-                  <div className="px-2 py-1.5 bg-gray-100 rounded text-gray-800 text-sm">
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">PR文字数</label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700">
                     {record.prCharCount}文字
                   </div>
                 </div>
@@ -399,31 +446,54 @@ export default function HistoryDetailPage() {
             </div>
           </div>
 
-          {/* 右カラム: スカウト文 */}
-          <div className="w-1/2 bg-white rounded-lg shadow p-5 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-gray-800">スカウト文</h2>
-              <button
-                onClick={handleCopy}
-                className={`px-4 py-1.5 text-sm rounded font-medium flex items-center gap-2 ${
-                  copyStatus
-                    ? "bg-green-500 text-white"
-                    : "bg-blue-500 text-white hover:bg-blue-600"
-                }`}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                {copyStatus || "コピー"}
-              </button>
+          {/* 右カラム: スカウト文（編集可能） */}
+          <div 
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col"
+            style={{ height: `${CARD_HEIGHT}px` }}
+          >
+            {/* カードヘッダー */}
+            <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">スカウト文</h2>
+                <p className="text-xs text-gray-500">直接編集できます</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">{editScoutMessage.length}文字</span>
+                <button
+                  onClick={handleSaveScoutMessage}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                    scoutSaveStatus
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-600 text-white hover:bg-gray-700"
+                  }`}
+                >
+                  {scoutSaveStatus || "保存"}
+                </button>
+                <button
+                  onClick={handleCopy}
+                  className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                    copyStatus
+                      ? "bg-green-500 text-white"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  {copyStatus || "コピー"}
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-auto bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-100 whitespace-pre-wrap break-words leading-relaxed">
-                {record.generatedMessage}
-              </p>
-            </div>
-            <div className="mt-2 text-right text-xs text-gray-500">
-              {record.generatedMessage.length}文字
+
+            {/* スカウト文エディタ */}
+            <div className="flex-1 overflow-hidden rounded-lg bg-gray-700">
+              <textarea
+                value={editScoutMessage}
+                onChange={(e) => setEditScoutMessage(e.target.value)}
+                className="w-full h-full px-5 py-4 bg-transparent text-gray-100 text-sm leading-relaxed resize-none focus:outline-none"
+                style={{ lineHeight: "1.75" }}
+                placeholder="スカウト文を入力..."
+              />
             </div>
           </div>
         </div>
