@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Delivery {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  sentAt        DateTime  @map("sent_at") @db.Timestamptz
+  sendDate      DateTime  @map("send_date") @db.Date
+  timeSlot      String    @map("time_slot")
+  templateType  String    @map("template_type")
+  finalMessage  String    @map("final_message")
+  sourceText    String?   @map("source_text")
+  studentId7    String?   @map("student_id7")
+  lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz
+  offerStatus   String    @default("none") @map("offer_status")
+  approvedAt    DateTime? @map("approved_at") @db.Timestamptz
+  onHoldAt      DateTime? @map("on_hold_at") @db.Timestamptz
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz
+  notes         String?
+
+  @@index([sentAt], name: "idx_deliveries_sent_at")
+  @@index([sendDate], name: "idx_deliveries_send_date")
+  @@index([timeSlot], name: "idx_deliveries_time_slot")
+  @@index([templateType], name: "idx_deliveries_template_type")
+  @@index([studentId7], name: "idx_deliveries_student_id7")
+  @@index([lastLoginAt], name: "idx_deliveries_last_login_at")
+  @@index([offerStatus], name: "idx_deliveries_offer_status")
+  @@map("deliveries")
+}

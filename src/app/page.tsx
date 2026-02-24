@@ -758,7 +758,34 @@ export default function Home() {
       });
       
       console.log("履歴に保存しました:", savedRecord.id);
-      setCopyStatus("コピーしました - 履歴に保存済み");
+
+      // staging環境ではDBにも保存
+      if (IS_STAGING) {
+        try {
+          const dbRes = await fetch("/api/deliveries", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sentAt: new Date().toISOString(),
+              templateType: pattern,
+              finalMessage: generatedMessage,
+              sourceText: pasteText,
+            }),
+          });
+          if (dbRes.ok) {
+            console.log("DBに保存しました");
+            setCopyStatus("コピーしました - 履歴・DBに保存済み");
+          } else {
+            console.error("DB保存エラー:", await dbRes.text());
+            setCopyStatus("コピーしました - 履歴に保存済み（DB保存エラー）");
+          }
+        } catch (dbErr) {
+          console.error("DB保存エラー:", dbErr);
+          setCopyStatus("コピーしました - 履歴に保存済み（DB接続エラー）");
+        }
+      } else {
+        setCopyStatus("コピーしました - 履歴に保存済み");
+      }
       
       // 1.5秒後に全てクリアして新規状態に
       setTimeout(() => {
@@ -785,9 +812,27 @@ export default function Home() {
       )}
       
       <div className={`mx-auto max-w-3xl ${IS_STAGING ? "pt-10" : ""}`}>
-        <h1 className="mb-6 text-2xl font-bold text-gray-800">
-          OfferBox スカウト文生成
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">
+            OfferBox スカウト文生成
+          </h1>
+          {IS_STAGING && (
+            <div className="flex gap-2">
+              <a
+                href="/deliveries"
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                配信履歴
+              </a>
+              <a
+                href="/analytics"
+                className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                集計
+              </a>
+            </div>
+          )}
+        </div>
 
         {/* 貼り付け欄 */}
         <div className="mb-6">
@@ -1070,6 +1115,44 @@ export default function Home() {
                   </div>
                 ))
               )}
+            </div>
+          )}
+
+          {/* Staging: DBインポート機能 */}
+          {IS_STAGING && history.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-dashed">
+              <p className="text-xs text-gray-500 mb-2">
+                [Staging専用] ローカル履歴をDBに一括投入
+              </p>
+              <button
+                onClick={async () => {
+                  if (!confirm(`${history.length}件の履歴をDBにインポートしますか？`)) return;
+                  try {
+                    const records = history.map((h) => ({
+                      sentAt: h.createdAt,
+                      templateType: h.pattern,
+                      finalMessage: h.generatedMessage,
+                      sourceText: h.pasteText,
+                    }));
+                    const res = await fetch("/api/admin/import-deliveries", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ records }),
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      alert(`完了: ${data.inserted}件追加, ${data.skipped}件スキップ`);
+                    } else {
+                      alert(`エラー: ${data.error}`);
+                    }
+                  } catch (err) {
+                    alert(`エラー: ${err instanceof Error ? err.message : "不明"}`);
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-medium bg-orange-100 text-orange-700 rounded border border-orange-300 hover:bg-orange-200"
+              >
+                ローカル履歴をDBに投入
+              </button>
             </div>
           )}
         </div>
