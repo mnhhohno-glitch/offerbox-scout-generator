@@ -466,3 +466,330 @@ GEMINI_API_KEY=AIzaSy...（実際のAPIキー）
 |---------|-------------|
 | 新規mode追加 | `route.ts` のPOSTハンドラー |
 | Geminiプロンプト変更 | `route.ts` の各INSTRUCTION定数 |
+
+---
+
+## 15. 自己レビュー：追加仕様詳細
+
+### 15.1 自己PR抽出ロジック詳細（`extractPrCandidate`）
+
+#### 見出し検出の優先順位
+
+```typescript
+const priorityHeadings = [
+  "自己PR",      // 最優先
+  "アピール",
+  "強み",
+  "ガクチカ",
+  "学生時代に力を入れたこと"  // 最後
+];
+```
+
+#### 抽出終了条件
+
+| 条件 | 説明 |
+|------|------|
+| 次の見出し検出 | `^[■◆●▼【]` または `^[A-Za-z0-9]{2,}[:：]` にマッチ |
+| キーワード検出 | 「希望」「志望」「資格」「趣味」「特技」を含む短い行（20文字未満） |
+| 連続空行3つ | セクション終了とみなす |
+
+#### フォールバック処理
+
+見出しが見つからない場合：
+1. テキストを`\n\n+`で分割
+2. 各段落の文字数を比較
+3. 最長の段落を自己PR候補として返す
+
+### 15.2 学部名抽出ロジック詳細（`extractFacultyName`）
+
+#### 抽出パターン（優先順）
+
+```typescript
+// パターン1: 正規表現で直接抽出
+const facultyMatch = pasteText.match(/([ぁ-んァ-ヶー一-龠]{2,15}学部)/);
+const departmentMatch = pasteText.match(/([ぁ-んァ-ヶー一-龠]{2,15}学科)/);
+
+// パターン2: 行単位で「学部」を含む部分を探索
+```
+
+#### 出力形式
+
+| 抽出結果 | 出力例 |
+|---------|--------|
+| 学部のみ | `経済学部` |
+| 学部＋学科 | `経済学部 経済学科` |
+| 抽出失敗 | `""` （空文字） |
+
+### 15.3 テキスト整形処理フロー
+
+#### Aパターンの整形フロー
+
+```
+Gemini応答(opening_message)
+    ↓
+formatOpeningMessage()
+    ├─ 改行を\nに統一
+    ├─ 半角スペース除去
+    ├─ 「〇〇さん」除去（removeNameCalling）
+    ├─ 全角スペース除去
+    ├─ 改行を一旦除去
+    ├─ 末尾文「ぜひ一度お話したくご連絡しました！」を保証
+    └─ 句点「。」で改行
+    ↓
+normalizeOpeningByPeriod()
+    ├─ 半角スペース除去
+    ├─ 改行を一旦除去
+    ├─ 末尾文を保証（重複回避）
+    └─ 句点「。」で改行を再構成
+    ↓
+最終出力
+```
+
+#### 整形関数の責務分担
+
+| 関数 | 責務 | 適用対象 |
+|------|------|---------|
+| `formatOpeningMessage` | 基本整形＋名前呼び除去 | opening_messageのみ |
+| `normalizeOpeningByPeriod` | 句点改行の最終正規化 | opening_messageのみ |
+| `formatForPC` | PC版プレビュー用（連続改行を削減） | 表示時のみ |
+| `removeAsciiSpaces` | 半角スペース除去 | title取得後 |
+
+**重要**: `FIXED_TEXT`と`B_TEMPLATE_TEXT`には整形処理を適用しない。
+
+### 15.4 最終出力構造
+
+#### Aパターン最終出力
+
+```
+【{title}】
+
+初めまして。
+スタートライン新卒採用責任者の船戸です。
+
+{formatted_opening_message}
+（句点ごとに改行された3〜4文）
+
+{FIXED_TEXT}
+（会社紹介固定文：変更不可）
+```
+
+#### Bパターン最終出力
+
+```
+{B_TEMPLATE_TEXT 内の {{B_PROFILE_LINE}} を置換}
+
+※B_TEMPLATE_TEXTは固定。
+※{{B_PROFILE_LINE}}のみGemini生成1文で置換。
+※学部抽出失敗時はデフォルト文「プロフィールを拝見し、ご連絡しました。」
+```
+
+### 15.5 Geminiプロンプト定数一覧
+
+| 定数名 | 用途 | mode |
+|--------|------|------|
+| `SYSTEM_INSTRUCTION_BASE` | 共通禁止ルール | 全mode |
+| `SYSTEM_INSTRUCTION_TITLE` | 見出し生成用 | title |
+| `SYSTEM_INSTRUCTION_OPENING` | 冒頭パート生成用 | opening |
+| `SYSTEM_INSTRUCTION_B_PROFILE` | B用1文生成 | b_profile_line |
+| `TITLE_INSTRUCTION_TEMPLATE` | 見出し生成プロンプト | title |
+| `OPENING_INSTRUCTION_TEMPLATE` | 冒頭パート生成プロンプト | opening |
+| `B_PROFILE_LINE_TEMPLATE` | B用1文生成プロンプト | b_profile_line |
+
+#### プロンプト変更時の影響範囲
+
+| 変更内容 | 影響定数 | 副作用 |
+|---------|---------|--------|
+| 禁止ルール追加 | `SYSTEM_INSTRUCTION_BASE` | 全modeに影響 |
+| 文字数変更 | `SYSTEM_INSTRUCTION_OPENING`, `OPENING_INSTRUCTION_TEMPLATE` | Aパターンのみ |
+| 見出しルール変更 | `TITLE_INSTRUCTION_TEMPLATE` | Aパターンのみ |
+| B用1文ルール変更 | `B_PROFILE_LINE_TEMPLATE` | Bパターンのみ |
+
+---
+
+## 16. 責務分離の明確化
+
+### 16.1 フロントエンド vs バックエンドの責務
+
+| 処理 | 担当 | 理由 |
+|------|------|------|
+| A/B判定 | フロントエンド | UIフィードバックの即時性 |
+| 学部名抽出 | フロントエンド | Bパターン時のAPI呼び出し前処理 |
+| Gemini API呼び出し | バックエンド | APIキー秘匿 |
+| JSON抽出フォールバック | バックエンド | Gemini応答の安定化 |
+| 文字数切り詰め | バックエンド | 最終出力の品質保証 |
+| 句点改行整形 | フロントエンド | 表示整形の柔軟性 |
+| 履歴保存 | フロントエンド | サーバーレス前提 |
+
+### 16.2 バリデーションの二重化
+
+| チェック内容 | フロントエンド | バックエンド |
+|-------------|---------------|-------------|
+| 空文字チェック | ボタン非活性化 | 400エラー |
+| mode検証 | なし | 400エラー |
+| APIキー存在 | なし | 500エラー |
+| Gemini応答検証 | throw Error | 500エラー |
+
+### 16.3 文字数制限の責務
+
+| 制限 | Geminiプロンプト | アプリ側強制 |
+|------|-----------------|-------------|
+| title 20文字 | 指示あり | `slice(0, 20)` |
+| opening_message 100〜150文字 | 指示あり | `slice(0, 300)`（安全マージン） |
+| profile_line | 1文のみ指示 | `slice(0, 150)` |
+
+**設計意図**: Geminiは指示を100%守らないため、アプリ側で強制切り詰めを行う。
+
+---
+
+## 17. 依存関係図
+
+### 17.1 Aパターン処理フロー
+
+```
+pasteText入力
+    │
+    ├─① extractPrCandidate() → prCandidate
+    │
+    ├─② judgePattern(prCandidate) → "A"
+    │
+    ├─③ POST /api/gemini (mode: title)
+    │       └─ 依存: pasteText全文
+    │       └─ 出力: title (20文字)
+    │
+    ├─④ buildGreetingA(title) → greeting
+    │       └─ 依存: ③の出力
+    │
+    ├─⑤ POST /api/gemini (mode: opening)
+    │       └─ 依存: pasteText全文
+    │       └─ 出力: opening_message
+    │
+    ├─⑥ formatOpeningMessage(opening_message)
+    │       └─ 依存: ⑤の出力
+    │
+    ├─⑦ normalizeOpeningByPeriod(formatted)
+    │       └─ 依存: ⑥の出力
+    │
+    └─⑧ 結合: greeting + opening + FIXED_TEXT
+            └─ 依存: ④⑦の出力 + 定数
+```
+
+### 17.2 Bパターン処理フロー
+
+```
+pasteText入力
+    │
+    ├─① extractPrCandidate() → prCandidate
+    │
+    ├─② judgePattern(prCandidate) → "B"
+    │
+    ├─③ extractFacultyName(pasteText) → facultyName
+    │
+    ├─④ POST /api/gemini (mode: b_profile_line)
+    │       └─ 依存: facultyName（学部名のみ）
+    │       └─ 出力: profile_line (1文)
+    │       └─ フォールバック: デフォルト文
+    │
+    └─⑤ B_TEMPLATE_TEXT.replace("{{B_PROFILE_LINE}}", profile_line)
+            └─ 依存: ④の出力 + 定数
+```
+
+### 17.3 関数間依存関係
+
+```
+handleGenerate()
+    ├─ extractPrCandidate()
+    ├─ judgePattern()
+    ├─ [Aのみ] buildGreetingA()
+    ├─ [Aのみ] formatOpeningMessage()
+    │       └─ removeNameCalling()
+    ├─ [Aのみ] normalizeOpeningByPeriod()
+    ├─ [Bのみ] extractFacultyName()
+    └─ removeAsciiSpaces()
+
+handleCopy()
+    ├─ getCurrentPreviewText()
+    │       └─ formatForPC() [PC版のみ]
+    ├─ addToHistory()
+    │       └─ saveHistory()
+    └─ clearAllState()
+```
+
+---
+
+## 18. エラーハンドリング詳細
+
+### 18.1 フロントエンド
+
+| エラー発生箇所 | 処理 | ユーザーへの通知 |
+|---------------|------|-----------------|
+| fetch失敗 | catch節でエラー設定 | 赤枠でエラーメッセージ表示 |
+| title取得失敗 | throw Error | エラーメッセージ表示 |
+| opening_message取得失敗 | throw Error | エラーメッセージ表示 |
+| B用API失敗 | console.error＋デフォルト文使用 | 通知なし（フォールバック） |
+| クリップボードコピー失敗 | catch節 | 「コピーに失敗しました」表示 |
+| 履歴読み込み失敗 | console.error＋空配列 | 通知なし |
+
+### 18.2 バックエンド
+
+| エラー条件 | HTTPステータス | エラーメッセージ |
+|-----------|---------------|-----------------|
+| mode不正 | 400 | `mode must be 'title', 'opening', or 'b_profile_line'` |
+| pasteText不足 | 400 | `pasteText is required` |
+| facultyName不足 | 400 | `facultyName is required for b_profile_line mode` |
+| APIキー未設定 | 500 | `GEMINI_API_KEY is not configured` |
+| Gemini APIエラー | Geminiのステータス | `Gemini API error: {status}` |
+| 応答なし | 500 | `No response from Gemini` |
+| 応答構造不正 | 500 | `Invalid response structure from Gemini` |
+| その他例外 | 500 | `Internal server error` |
+
+---
+
+## 19. 改修時の注意事項
+
+### 19.1 テンプレート変更時
+
+- `FIXED_TEXT`と`B_TEMPLATE_TEXT`は**末尾の改行・空白も含めて完全一致**が必要
+- 変更後は必ずスマホ版/PC版プレビューで改行崩れを確認
+- `{{B_PROFILE_LINE}}`プレースホルダーは正確に維持
+
+### 19.2 Geminiプロンプト変更時
+
+- `SYSTEM_INSTRUCTION_BASE`の変更は全modeに影響
+- 文字数指示変更時はアプリ側の`slice()`も確認
+- 禁止ルール追加時は出力例も更新
+
+### 19.3 整形ロジック変更時
+
+- `formatOpeningMessage`と`normalizeOpeningByPeriod`は**適用順序が重要**
+- 両方で句点改行処理があるため、重複処理に注意
+- `FIXED_TEXT`には絶対に整形を適用しない
+
+### 19.4 A/B判定閾値変更時
+
+- `judgePattern()`の200文字閾値を変更
+- UI表示の説明文「200文字以上」も合わせて変更
+- HistoryRecordの`prCharCount`表示には影響なし
+
+---
+
+## 20. 将来の拡張ポイント
+
+### 20.1 機能追加候補
+
+| 機能 | 影響範囲 | 難易度 |
+|------|---------|--------|
+| 履歴のサーバー保存 | DB追加、API追加、認証追加 | 高 |
+| 履歴からの再編集 | page.tsx UI追加 | 中 |
+| テンプレート切り替え | 定数→DB or 設定ファイル | 中 |
+| 複数パターン対応（C, D等） | judgePattern拡張、route.ts拡張 | 中 |
+| CSVエクスポート | page.tsx機能追加 | 低 |
+| バッチ生成 | 全面改修 | 高 |
+
+### 20.2 リファクタリング候補
+
+| 対象 | 現状の課題 | 改善案 |
+|------|-----------|--------|
+| page.tsx | 1ファイルに全ロジック集約 | hooks/utils分離 |
+| 整形関数 | 責務が重複 | 統合または明確な順序定義 |
+| 定数 | page.tsx内に直接定義 | 別ファイル分離 |
+| 型定義 | page.tsx内に定義 | types.ts分離 |
