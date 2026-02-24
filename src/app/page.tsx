@@ -1,20 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
-// 送信履歴の型定義
+// 環境変数からアプリ環境を取得
+const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
+const IS_STAGING = APP_ENV === "staging";
+
+// 履歴スキーマバージョン（互換性管理用）
+const HISTORY_SCHEMA_VERSION = 2;
+
+// 送信履歴の型定義（v2: Gemini出力を含む）
 interface HistoryRecord {
   id: string;
   timestamp: string;
+  createdAt: string; // ISO形式の日時（重複チェック用）
   pattern: "A" | "B";
   pasteText: string;
   generatedMessage: string;
   prCharCount: number;
+  // Gemini出力結果
+  geminiOutputs?: {
+    title?: string;           // Aパターン用
+    openingMessage?: string;  // Aパターン用
+    profileLine?: string;     // Bパターン用
+  };
   facultyName?: string;
+}
+
+// export用のデータ構造
+interface HistoryExportData {
+  schemaVersion: number;
+  exportedAt: string;
+  recordCount: number;
+  records: HistoryRecord[];
 }
 
 // ローカルストレージのキー
 const HISTORY_STORAGE_KEY = "offerbox_scout_history";
+
+// 履歴の重複チェック用キー生成
+function generateDedupeKey(record: HistoryRecord): string {
+  const textHash = record.generatedMessage.slice(0, 100);
+  return `${record.createdAt}-${textHash}`;
+}
 
 // Aパターン用あいさつ文を生成（titleはGemini生成）
 function buildGreetingA(title: string): string {
@@ -125,19 +153,6 @@ const FIXED_TEXT = `◆当社の事業は一言で言うと…
 
 株式会社スタートライン
 新卒採用責任者　船戸`;
-
-// 見出し候補
-const PR_HEADINGS = [
-  "自己PR",
-  "PR",
-  "アピール",
-  "強み",
-  "学生時代に力を入れたこと",
-  "ガクチカ",
-  "経験",
-  "実績",
-  "活動",
-];
 
 // 自己PR候補を抽出
 function extractPrCandidate(text: string): string {
@@ -373,7 +388,7 @@ function formatOpeningMessage(rawText: string): string {
 function formatForPC(text: string): string {
   if (!text) return "";
   // 連続する改行を1つに整理
-  let result = text.replace(/\n{3,}/g, "\n\n");
+  const result = text.replace(/\n{3,}/g, "\n\n");
   return result;
 }
 
@@ -392,13 +407,35 @@ export default function Home() {
   const [selectedPreview, setSelectedPreview] = useState<"mobile" | "pc">("mobile");
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  
+  // Gemini出力を一時保存（履歴保存時に使用）
+  const [currentGeminiOutputs, setCurrentGeminiOutputs] = useState<{
+    title?: string;
+    openingMessage?: string;
+    profileLine?: string;
+  }>({});
+  
+  // Import用
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    count: number;
+    lastDate: string;
+  } | null>(null);
+  const [pendingImportData, setPendingImportData] = useState<HistoryExportData | null>(null);
 
   // ローカルストレージから履歴を読み込み
   useEffect(() => {
     const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
     if (savedHistory) {
       try {
-        setHistory(JSON.parse(savedHistory));
+        const parsed = JSON.parse(savedHistory);
+        // v1からv2へのマイグレーション（createdAtがない場合は追加）
+        const migrated = parsed.map((r: HistoryRecord) => ({
+          ...r,
+          createdAt: r.createdAt || new Date(r.timestamp).toISOString(),
+        }));
+        setHistory(migrated);
       } catch (e) {
         console.error("履歴の読み込みに失敗:", e);
       }
@@ -411,15 +448,134 @@ export default function Home() {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
   };
 
-  // 履歴に追加
-  const addToHistory = (record: Omit<HistoryRecord, "id" | "timestamp">) => {
+  // 履歴に追加（Gemini出力含む）
+  const addToHistory = (record: Omit<HistoryRecord, "id" | "timestamp" | "createdAt">) => {
+    const now = new Date();
     const newRecord: HistoryRecord = {
       ...record,
       id: crypto.randomUUID(),
-      timestamp: new Date().toLocaleString("ja-JP"),
+      timestamp: now.toLocaleString("ja-JP"),
+      createdAt: now.toISOString(),
     };
-    const newHistory = [newRecord, ...history].slice(0, 100); // 最大100件保持
+    const newHistory = [newRecord, ...history].slice(0, 100);
     saveHistory(newHistory);
+    return newRecord;
+  };
+
+  // 履歴をJSON形式でエクスポート
+  const handleExportHistory = () => {
+    if (history.length === 0) {
+      setImportStatus("エクスポートする履歴がありません");
+      setTimeout(() => setImportStatus(null), 3000);
+      return;
+    }
+
+    const exportData: HistoryExportData = {
+      schemaVersion: HISTORY_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      recordCount: history.length,
+      records: history,
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `offerbox-history-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setImportStatus(`${history.length}件の履歴をエクスポートしました`);
+    setTimeout(() => setImportStatus(null), 3000);
+  };
+
+  // ファイル選択時の処理
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string) as HistoryExportData;
+        
+        // スキーマチェック
+        if (!data.schemaVersion || !data.records || !Array.isArray(data.records)) {
+          setImportStatus("エラー: 無効なファイル形式です");
+          setTimeout(() => setImportStatus(null), 5000);
+          return;
+        }
+
+        // 必須フィールドチェック
+        const validRecords = data.records.filter(
+          (r) => r.id && r.pattern && r.generatedMessage
+        );
+
+        if (validRecords.length === 0) {
+          setImportStatus("エラー: 有効な履歴データがありません");
+          setTimeout(() => setImportStatus(null), 5000);
+          return;
+        }
+
+        // プレビュー表示
+        const lastRecord = validRecords[0];
+        setImportPreview({
+          count: validRecords.length,
+          lastDate: lastRecord.timestamp || lastRecord.createdAt || "不明",
+        });
+        setPendingImportData({ ...data, records: validRecords });
+      } catch {
+        setImportStatus("エラー: JSONの解析に失敗しました");
+        setTimeout(() => setImportStatus(null), 5000);
+      }
+    };
+    reader.readAsText(file);
+    
+    // ファイル入力をリセット
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // インポート確定
+  const handleConfirmImport = () => {
+    if (!pendingImportData) return;
+
+    const importRecords = pendingImportData.records;
+    
+    // 既存履歴のキーセットを作成
+    const existingKeys = new Set(history.map(generateDedupeKey));
+    
+    // 重複を除外してマージ
+    const newRecords = importRecords.filter((r) => {
+      // createdAtがない場合は追加
+      if (!r.createdAt) {
+        r.createdAt = r.timestamp ? new Date(r.timestamp).toISOString() : new Date().toISOString();
+      }
+      return !existingKeys.has(generateDedupeKey(r));
+    });
+
+    // マージして100件にトリム
+    const merged = [...newRecords, ...history]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 100);
+
+    saveHistory(merged);
+    
+    setImportStatus(`${newRecords.length}件を追加しました（重複${importRecords.length - newRecords.length}件スキップ）`);
+    setImportPreview(null);
+    setPendingImportData(null);
+    setTimeout(() => setImportStatus(null), 5000);
+  };
+
+  // インポートキャンセル
+  const handleCancelImport = () => {
+    setImportPreview(null);
+    setPendingImportData(null);
   };
 
   // 全入力・出力をクリア（新規状態にリセット）
@@ -432,6 +588,7 @@ export default function Home() {
     setExtractedFaculty(null);
     setError(null);
     setSelectedPreview("mobile");
+    setCurrentGeminiOutputs({});
   };
 
   const handleGenerate = async () => {
@@ -444,6 +601,7 @@ export default function Home() {
     setGeneratedMessage("");
     setPattern(null);
     setExtractedFaculty(null);
+    setCurrentGeminiOutputs({});
 
     try {
       // 自己PR候補を抽出してA/B判定
@@ -462,6 +620,7 @@ export default function Home() {
 
       let greeting: string;
       let formattedOpening: string;
+      const geminiOutputs: typeof currentGeminiOutputs = {};
 
       if (judgedPattern === "A") {
         // Aパターン: Geminiでtitleとopening_messageを生成
@@ -484,6 +643,7 @@ export default function Home() {
           throw new Error("titleが取得できませんでした");
         }
 
+        geminiOutputs.title = title;
         greeting = buildGreetingA(title);
 
         // opening_message生成（Aパターンのみ）
@@ -504,6 +664,8 @@ export default function Home() {
         if (!openingMessageRaw) {
           throw new Error("opening_messageが取得できませんでした");
         }
+
+        geminiOutputs.openingMessage = openingMessageRaw;
 
         // 整形を適用
         formattedOpening = formatOpeningMessage(openingMessageRaw);
@@ -550,6 +712,7 @@ export default function Home() {
           console.log("学部名が抽出できなかったため、デフォルト文を使用");
         }
         
+        geminiOutputs.profileLine = profileLine;
         console.log("最終profileLine:", profileLine);
         
         // テンプレートの{{B_PROFILE_LINE}}を差し替え
@@ -557,6 +720,9 @@ export default function Home() {
         setOpeningMessageCharCount(null);
         setGeneratedMessage(finalB);
       }
+
+      // Gemini出力を保存（履歴保存時に使用）
+      setCurrentGeminiOutputs(geminiOutputs);
     } catch (err) {
       console.error("Generation error:", err);
       setError(err instanceof Error ? err.message : "エラーが発生しました");
@@ -581,15 +747,17 @@ export default function Home() {
     try {
       await navigator.clipboard.writeText(textToCopy);
       
-      // 履歴に保存
-      addToHistory({
+      // 履歴に保存（Gemini出力含む）
+      const savedRecord = addToHistory({
         pattern,
         pasteText,
         generatedMessage,
         prCharCount: prCharCount ?? 0,
+        geminiOutputs: Object.keys(currentGeminiOutputs).length > 0 ? currentGeminiOutputs : undefined,
         facultyName: extractedFaculty ?? undefined,
       });
       
+      console.log("履歴に保存しました:", savedRecord.id);
       setCopyStatus("コピーしました - 履歴に保存済み");
       
       // 1.5秒後に全てクリアして新規状態に
@@ -607,7 +775,16 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="mx-auto max-w-3xl">
+      {/* STAGINGバナー */}
+      {IS_STAGING && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-center py-2 shadow-md">
+          <span className="font-bold text-black text-sm tracking-wider">
+            STAGING 環境 - 本番ではありません
+          </span>
+        </div>
+      )}
+      
+      <div className={`mx-auto max-w-3xl ${IS_STAGING ? "pt-10" : ""}`}>
         <h1 className="mb-6 text-2xl font-bold text-gray-800">
           OfferBox スカウト文生成
         </h1>
@@ -786,18 +963,73 @@ export default function Home() {
               <span>{showHistory ? "▼" : "▶"}</span>
               送信履歴（{history.length}件）
             </button>
-            {history.length > 0 && (
-              <button
-                onClick={() => {
-                  if (confirm("全ての履歴を削除しますか？")) {
-                    saveHistory([]);
-                  }
-                }}
-                className="text-xs text-red-500 hover:text-red-700"
-              >
-                履歴をクリア
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {history.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm("全ての履歴を削除しますか？")) {
+                      saveHistory([]);
+                    }
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  履歴をクリア
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Export/Importステータス */}
+          {importStatus && (
+            <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-3">
+              <p className="text-sm text-blue-700">{importStatus}</p>
+            </div>
+          )}
+
+          {/* Importプレビュー */}
+          {importPreview && (
+            <div className="mb-4 rounded-lg bg-yellow-50 border border-yellow-300 p-4">
+              <p className="text-sm text-yellow-800 mb-3">
+                <strong>{importPreview.count}件</strong>の履歴をインポートしますか？
+                <br />
+                <span className="text-xs text-yellow-600">最終日時: {importPreview.lastDate}</span>
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleConfirmImport}
+                  className="px-3 py-1 text-xs font-medium bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                >
+                  インポート実行
+                </button>
+                <button
+                  onClick={handleCancelImport}
+                  className="px-3 py-1 text-xs font-medium bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Export/Importボタン */}
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={handleExportHistory}
+              disabled={history.length === 0}
+              className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded border border-gray-300 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              履歴を書き出し（JSON）
+            </button>
+            <label className="px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded border border-gray-300 hover:bg-gray-200 cursor-pointer">
+              履歴を読み込み（JSON）
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </label>
           </div>
 
           {showHistory && (
@@ -822,6 +1054,11 @@ export default function Home() {
                         <span className="text-xs text-gray-500">
                           {record.timestamp}
                         </span>
+                        {record.geminiOutputs && (
+                          <span className="text-xs text-green-600">
+                            [AI出力保存済]
+                          </span>
+                        )}
                       </div>
                       <span className="text-xs text-gray-400">
                         {record.prCharCount}文字
