@@ -127,7 +127,7 @@ export default function AnalyticsPage() {
                 type="date"
                 value={sendDateFrom}
                 onChange={(e) => setSendDateFrom(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
+                className="border rounded px-2 py-1 text-sm text-gray-900"
               />
             </div>
             <div>
@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
                 type="date"
                 value={sendDateTo}
                 onChange={(e) => setSendDateTo(e.target.value)}
-                className="border rounded px-2 py-1 text-sm"
+                className="border rounded px-2 py-1 text-sm text-gray-900"
               />
             </div>
             <button

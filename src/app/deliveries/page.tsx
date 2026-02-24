@@ -382,7 +382,7 @@ export default function DeliveriesPage() {
                 type="date"
                 value={sendDateFrom}
                 onChange={(e) => setSendDateFrom(e.target.value)}
-                className="w-full border rounded px-2 py-1 text-sm"
+                className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               />
             </div>
             <div>
@@ -391,7 +391,7 @@ export default function DeliveriesPage() {
                 type="date"
                 value={sendDateTo}
                 onChange={(e) => setSendDateTo(e.target.value)}
-                className="w-full border rounded px-2 py-1 text-sm"
+                className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               />
             </div>
             <div>
@@ -399,7 +399,7 @@ export default function DeliveriesPage() {
               <select
                 value={timeSlot}
                 onChange={(e) => setTimeSlot(e.target.value)}
-                className="w-full border rounded px-2 py-1 text-sm"
+                className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               >
                 <option value="">すべて</option>
                 {TIME_SLOTS.map((slot) => (
@@ -414,7 +414,7 @@ export default function DeliveriesPage() {
               <select
                 value={templateType}
                 onChange={(e) => setTemplateType(e.target.value)}
-                className="w-full border rounded px-2 py-1 text-sm"
+                className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               >
                 <option value="">すべて</option>
                 <option value="A">A</option>
@@ -428,7 +428,7 @@ export default function DeliveriesPage() {
                 value={studentId7}
                 onChange={(e) => setStudentId7(e.target.value)}
                 placeholder="7桁ID"
-                className="w-full border rounded px-2 py-1 text-sm"
+                className="w-full border rounded px-2 py-1 text-sm text-gray-900 placeholder-gray-900"
               />
             </div>
             <div>
@@ -436,7 +436,7 @@ export default function DeliveriesPage() {
               <select
                 value={offerStatus}
                 onChange={(e) => setOfferStatus(e.target.value)}
-                className="w-full border rounded px-2 py-1 text-sm"
+                className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               >
                 <option value="">すべて</option>
                 {STATUS_OPTIONS.map((opt) => (

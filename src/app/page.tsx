@@ -869,13 +869,13 @@ export default function Home() {
             <div className="flex gap-2">
               <a
                 href="/deliveries"
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 text-center min-w-[80px]"
               >
                 配信履歴
               </a>
               <a
                 href="/analytics"
-                className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+                className="px-4 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 text-center min-w-[80px]"
               >
                 集計
               </a>
