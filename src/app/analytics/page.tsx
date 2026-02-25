@@ -1,11 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
-const IS_STAGING = APP_ENV === "staging";
-const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || IS_STAGING;
+const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || APP_ENV === "staging";
+
+// 本番URLリスト（これらのホストではSTAGINGバナーを非表示）
+const PRODUCTION_HOSTS = [
+  "offerbox-scout-generator-production.up.railway.app",
+  "localhost",
+];
+
+// IS_STAGINGはクライアントサイドで動的に判定
+function useIsStaging(): boolean {
+  const [isStaging, setIsStaging] = useState(false);
+  
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    const isProductionHost = PRODUCTION_HOSTS.some(h => hostname.includes(h));
+    const envIsStaging = APP_ENV === "staging";
+    setIsStaging(envIsStaging && !isProductionHost);
+  }, []);
+  
+  return isStaging;
+}
 
 interface AnalyticsRow {
   sendDate: string;
@@ -17,6 +36,7 @@ interface AnalyticsRow {
 const TIME_SLOTS = ["00-05", "06-11", "12-17", "18-23"];
 
 export default function AnalyticsPage() {
+  const isStaging = useIsStaging();
   const [sendDateFrom, setSendDateFrom] = useState("");
   const [sendDateTo, setSendDateTo] = useState("");
   const [rows, setRows] = useState<AnalyticsRow[]>([]);
@@ -94,7 +114,7 @@ export default function AnalyticsPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       {/* STAGINGバナー（本番では非表示） */}
-      {IS_STAGING && (
+      {isStaging && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-center py-2 shadow-md">
           <span className="font-bold text-black text-sm tracking-wider">
             STAGING 環境 - 本番ではありません
@@ -102,7 +122,7 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      <div className={`mx-auto max-w-6xl ${IS_STAGING ? "pt-10" : ""}`}>
+      <div className={`mx-auto max-w-6xl ${isStaging ? "pt-10" : ""}`}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800">配信集計</h1>
           <div className="flex gap-2">
