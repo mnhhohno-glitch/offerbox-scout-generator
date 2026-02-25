@@ -1,15 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  extractStudentId7,
-  extractUniversityName,
   extractFacultyName as extractFacultyFromUtils,
-  extractDepartmentName,
-  extractPrefecture,
-  extractGender,
-  getGenderLabel,
 } from "@/lib/extraction-utils";
 
 // 環境変数からアプリ環境を取得
@@ -28,63 +22,6 @@ function useIsStaging(): boolean {
   }, []);
   
   return isStaging;
-}
-
-// 履歴スキーマバージョン（互換性管理用）
-const HISTORY_SCHEMA_VERSION = 4;
-
-// オファーステータスの型定義
-type OfferStatus = "offered" | "applied" | "on_hold" | "declined";
-
-// オファーステータスのオプション
-const OFFER_STATUS_OPTIONS: { value: OfferStatus; label: string; color: string }[] = [
-  { value: "offered", label: "オファー済", color: "bg-blue-500 text-white" },
-  { value: "applied", label: "応募", color: "bg-green-500 text-white" },
-  { value: "on_hold", label: "保留", color: "bg-yellow-500 text-white" },
-  { value: "declined", label: "辞退", color: "bg-red-500 text-white" },
-];
-
-// 送信履歴の型定義（v4: オファーステータスを含む）
-interface HistoryRecord {
-  id: string;
-  timestamp: string;
-  createdAt: string; // ISO形式の日時（重複チェック用）
-  pattern: "A" | "B";
-  pasteText: string;
-  generatedMessage: string;
-  prCharCount: number;
-  // Gemini出力結果
-  geminiOutputs?: {
-    title?: string;           // Aパターン用
-    openingMessage?: string;  // Aパターン用
-    profileLine?: string;     // Bパターン用
-  };
-  // 学生情報
-  studentId7?: string;        // 7桁ID
-  universityName?: string;    // 大学名
-  facultyName?: string;       // 学部
-  departmentName?: string;    // 学科
-  prefecture?: string;        // 都道府県
-  gender?: string;            // 性別
-  // オファーステータス
-  offerStatus?: OfferStatus;  // デフォルト: offered
-}
-
-// export用のデータ構造
-interface HistoryExportData {
-  schemaVersion: number;
-  exportedAt: string;
-  recordCount: number;
-  records: HistoryRecord[];
-}
-
-// ローカルストレージのキー
-const HISTORY_STORAGE_KEY = "offerbox_scout_history";
-
-// 履歴の重複チェック用キー生成
-function generateDedupeKey(record: HistoryRecord): string {
-  const textHash = record.generatedMessage.slice(0, 100);
-  return `${record.createdAt}-${textHash}`;
 }
 
 // Aパターン用あいさつ文を生成（titleはGemini生成）
@@ -449,12 +386,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPreview, setSelectedPreview] = useState<"mobile" | "pc">("mobile");
-  const [history, setHistory] = useState<HistoryRecord[]>([]);
-  
-  // 履歴の選択状態と検索
-  const [selectedRecordIds, setSelectedRecordIds] = useState<Set<string>>(new Set());
-  const [searchIdQuery, setSearchIdQuery] = useState("");
-  const [searchFreeQuery, setSearchFreeQuery] = useState("");
   
   const router = useRouter();
   
@@ -465,169 +396,6 @@ export default function Home() {
     profileLine?: string;
   }>({});
   
-  // Import用
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importStatus, setImportStatus] = useState<string | null>(null);
-  const [importPreview, setImportPreview] = useState<{
-    count: number;
-    lastDate: string;
-  } | null>(null);
-  const [pendingImportData, setPendingImportData] = useState<HistoryExportData | null>(null);
-
-  // ローカルストレージから履歴を読み込み
-  useEffect(() => {
-    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
-    if (savedHistory) {
-      try {
-        const parsed = JSON.parse(savedHistory);
-        // v1からv2へのマイグレーション（createdAtがない場合は追加）
-        const migrated = parsed.map((r: HistoryRecord) => ({
-          ...r,
-          createdAt: r.createdAt || new Date(r.timestamp).toISOString(),
-        }));
-        setHistory(migrated);
-      } catch (e) {
-        console.error("履歴の読み込みに失敗:", e);
-      }
-    }
-  }, []);
-
-  // 履歴をローカルストレージに保存
-  const saveHistory = (newHistory: HistoryRecord[]) => {
-    setHistory(newHistory);
-    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
-  };
-
-  // 履歴に追加（Gemini出力含む）
-  const addToHistory = (record: Omit<HistoryRecord, "id" | "timestamp" | "createdAt">) => {
-    const now = new Date();
-    const newRecord: HistoryRecord = {
-      ...record,
-      id: crypto.randomUUID(),
-      timestamp: now.toLocaleString("ja-JP"),
-      createdAt: now.toISOString(),
-    };
-    const newHistory = [newRecord, ...history].slice(0, 100);
-    saveHistory(newHistory);
-    return newRecord;
-  };
-
-  // 履歴をJSON形式でエクスポート
-  const handleExportHistory = () => {
-    if (history.length === 0) {
-      setImportStatus("エクスポートする履歴がありません");
-      setTimeout(() => setImportStatus(null), 3000);
-      return;
-    }
-
-    const exportData: HistoryExportData = {
-      schemaVersion: HISTORY_SCHEMA_VERSION,
-      exportedAt: new Date().toISOString(),
-      recordCount: history.length,
-      records: history,
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `offerbox-history-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    setImportStatus(`${history.length}件の履歴をエクスポートしました`);
-    setTimeout(() => setImportStatus(null), 3000);
-  };
-
-  // ファイル選択時の処理
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target?.result as string) as HistoryExportData;
-        
-        // スキーマチェック
-        if (!data.schemaVersion || !data.records || !Array.isArray(data.records)) {
-          setImportStatus("エラー: 無効なファイル形式です");
-          setTimeout(() => setImportStatus(null), 5000);
-          return;
-        }
-
-        // 必須フィールドチェック
-        const validRecords = data.records.filter(
-          (r) => r.id && r.pattern && r.generatedMessage
-        );
-
-        if (validRecords.length === 0) {
-          setImportStatus("エラー: 有効な履歴データがありません");
-          setTimeout(() => setImportStatus(null), 5000);
-          return;
-        }
-
-        // プレビュー表示
-        const lastRecord = validRecords[0];
-        setImportPreview({
-          count: validRecords.length,
-          lastDate: lastRecord.timestamp || lastRecord.createdAt || "不明",
-        });
-        setPendingImportData({ ...data, records: validRecords });
-      } catch {
-        setImportStatus("エラー: JSONの解析に失敗しました");
-        setTimeout(() => setImportStatus(null), 5000);
-      }
-    };
-    reader.readAsText(file);
-    
-    // ファイル入力をリセット
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  // インポート確定
-  const handleConfirmImport = () => {
-    if (!pendingImportData) return;
-
-    const importRecords = pendingImportData.records;
-    
-    // 既存履歴のキーセットを作成
-    const existingKeys = new Set(history.map(generateDedupeKey));
-    
-    // 重複を除外してマージ
-    const newRecords = importRecords.filter((r) => {
-      // createdAtがない場合は追加
-      if (!r.createdAt) {
-        r.createdAt = r.timestamp ? new Date(r.timestamp).toISOString() : new Date().toISOString();
-      }
-      return !existingKeys.has(generateDedupeKey(r));
-    });
-
-    // マージして100件にトリム
-    const merged = [...newRecords, ...history]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 100);
-
-    saveHistory(merged);
-    
-    setImportStatus(`${newRecords.length}件を追加しました（重複${importRecords.length - newRecords.length}件スキップ）`);
-    setImportPreview(null);
-    setPendingImportData(null);
-    setTimeout(() => setImportStatus(null), 5000);
-  };
-
-  // インポートキャンセル
-  const handleCancelImport = () => {
-    setImportPreview(null);
-    setPendingImportData(null);
-  };
-
   // 全入力・出力をクリア（新規状態にリセット）
   const clearAllState = () => {
     setPasteText("");
@@ -796,34 +564,8 @@ export default function Home() {
 
     try {
       await navigator.clipboard.writeText(textToCopy);
-      
-      // 学生情報を抽出
-      const studentId7 = extractStudentId7(pasteText) ?? undefined;
-      const universityName = extractUniversityName(pasteText) ?? undefined;
-      const facultyName = extractFacultyFromUtils(pasteText) ?? extractedFaculty ?? undefined;
-      const departmentName = extractDepartmentName(pasteText) ?? undefined;
-      const prefecture = extractPrefecture(pasteText) ?? undefined;
-      const gender = extractGender(pasteText);
-      
-      // 履歴に保存（Gemini出力 + 学生情報含む）
-      const savedRecord = addToHistory({
-        pattern,
-        pasteText,
-        generatedMessage,
-        prCharCount: prCharCount ?? 0,
-        geminiOutputs: Object.keys(currentGeminiOutputs).length > 0 ? currentGeminiOutputs : undefined,
-        studentId7,
-        universityName,
-        facultyName,
-        departmentName,
-        prefecture,
-        gender: gender !== "unknown" ? gender : undefined,
-        offerStatus: "offered", // デフォルトは「オファー済」
-      });
-      
-      console.log("履歴に保存しました:", savedRecord.id);
 
-      // DB有効時はDBにも保存
+      // DBに保存（本番はDBのみ）
       if (DB_ENABLED) {
         try {
           const dbRes = await fetch("/api/deliveries", {
@@ -837,18 +579,17 @@ export default function Home() {
             }),
           });
           if (dbRes.ok) {
-            console.log("DBに保存しました");
-            setCopyStatus("コピーしました - 履歴・DBに保存済み");
+            setCopyStatus("コピーしました - DBに保存済み");
           } else {
             console.error("DB保存エラー:", await dbRes.text());
-            setCopyStatus("コピーしました - 履歴に保存済み（DB保存エラー）");
+            setCopyStatus("コピーしました（DB保存エラー）");
           }
         } catch (dbErr) {
           console.error("DB保存エラー:", dbErr);
-          setCopyStatus("コピーしました - 履歴に保存済み（DB接続エラー）");
+          setCopyStatus("コピーしました（DB接続エラー）");
         }
       } else {
-        setCopyStatus("コピーしました - 履歴に保存済み");
+        setCopyStatus("コピーしました");
       }
       
       // 1.5秒後に全てクリアして新規状態に
@@ -1072,266 +813,17 @@ export default function Home() {
           </div>
         )}
 
-        {/* 送信履歴セクション */}
-        <div className="mt-8 border-t pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm text-gray-600">
-              送信履歴（{history.length}件）
-            </span>
-            {selectedRecordIds.size > 0 && (
-              <button
-                onClick={() => {
-                  if (confirm(`選択した${selectedRecordIds.size}件の履歴を削除しますか？`)) {
-                    const newHistory = history.filter(h => !selectedRecordIds.has(h.id));
-                    saveHistory(newHistory);
-                    setSelectedRecordIds(new Set());
-                  }
-                }}
-                className="text-xs text-red-500 hover:text-red-700"
-              >
-                選択した{selectedRecordIds.size}件を削除
-              </button>
-            )}
+        {/* 配信履歴へのリンク */}
+        {DB_ENABLED && (
+          <div className="mt-8 border-t pt-6">
+            <a
+              href="/deliveries"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              配信履歴を確認する →
+            </a>
           </div>
-
-          {/* 検索フィルタ */}
-          {history.length > 0 && (
-            <div className="mb-4 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="flex gap-3">
-                <div className="w-1/4">
-                  <label className="block text-xs text-gray-600 mb-1">ID検索</label>
-                  <input
-                    type="text"
-                    value={searchIdQuery}
-                    onChange={(e) => setSearchIdQuery(e.target.value)}
-                    placeholder="7桁IDで検索"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs text-gray-600 mb-1">フリー検索</label>
-                  <input
-                    type="text"
-                    value={searchFreeQuery}
-                    onChange={(e) => setSearchFreeQuery(e.target.value)}
-                    placeholder="大学名、学部など"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              {(searchIdQuery || searchFreeQuery) && (
-                <button
-                  onClick={() => {
-                    setSearchIdQuery("");
-                    setSearchFreeQuery("");
-                  }}
-                  className="mt-2 text-xs text-blue-600 hover:underline"
-                >
-                  検索をクリア
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* 
-            JSON Export/Import機能は管理者用途として保持（UIからは非表示）
-            機能自体はhandleExportHistory, handleFileSelect等で利用可能
-          */}
-
-          <div className="space-y-2">
-            {history.length === 0 ? (
-              <p className="text-sm text-gray-400">履歴がありません</p>
-            ) : (
-              (() => {
-                // 検索フィルタ適用
-                const filteredHistory = history.filter((record) => {
-                  // ID検索
-                  if (searchIdQuery && record.studentId7) {
-                    if (!record.studentId7.includes(searchIdQuery)) {
-                      return false;
-                    }
-                  } else if (searchIdQuery && !record.studentId7) {
-                    return false;
-                  }
-                  
-                  // フリー検索
-                  if (searchFreeQuery) {
-                    const searchText = searchFreeQuery.toLowerCase();
-                    const searchableText = [
-                      record.universityName,
-                      record.facultyName,
-                      record.departmentName,
-                      record.prefecture,
-                      record.pasteText,
-                    ]
-                      .filter(Boolean)
-                      .join(" ")
-                      .toLowerCase();
-                    if (!searchableText.includes(searchText)) {
-                      return false;
-                    }
-                  }
-                  
-                  return true;
-                });
-
-                if (filteredHistory.length === 0) {
-                  return <p className="text-sm text-gray-400">検索結果がありません</p>;
-                }
-
-                return filteredHistory.map((record) => {
-                  const isSelected = selectedRecordIds.has(record.id);
-                  const currentStatus = record.offerStatus || "offered";
-                  const statusOption = OFFER_STATUS_OPTIONS.find(o => o.value === currentStatus);
-                  
-                  return (
-                    <div
-                      key={record.id}
-                      className={`rounded-lg bg-white shadow-sm border ${isSelected ? "border-blue-400 bg-blue-50" : "border-gray-100"}`}
-                    >
-                      <div className="flex items-center p-3">
-                        {/* チェックボックス */}
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {
-                            const newSet = new Set(selectedRecordIds);
-                            if (isSelected) {
-                              newSet.delete(record.id);
-                            } else {
-                              newSet.add(record.id);
-                            }
-                            setSelectedRecordIds(newSet);
-                          }}
-                          className="w-4 h-4 text-blue-600 rounded border-gray-300 mr-3 flex-shrink-0"
-                        />
-                        
-                        {/* クリックで詳細ページへ遷移 */}
-                        <div
-                          onClick={() => router.push(`/history/${record.id}`)}
-                          className="flex-1 cursor-pointer hover:bg-gray-50 -m-2 p-2 rounded"
-                        >
-                          <div className="flex items-center gap-3 mb-1">
-                            {/* パターン表示 */}
-                            <span
-                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                                record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
-                              }`}
-                            >
-                              {record.pattern}
-                            </span>
-                            {/* 日時 */}
-                            <span className="text-xs text-gray-500">
-                              {record.timestamp}
-                            </span>
-                          </div>
-                          {/* 学生情報サマリー */}
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-700 ml-9">
-                            {record.studentId7 && (
-                              <span className="font-mono text-blue-600">{record.studentId7}</span>
-                            )}
-                            {record.universityName && (
-                              <span>{record.universityName}</span>
-                            )}
-                            {record.facultyName && (
-                              <span>{record.facultyName}</span>
-                            )}
-                            {record.prefecture && (
-                              <span>{record.prefecture}</span>
-                            )}
-                            {record.gender && (
-                              <span>{getGenderLabel(record.gender)}</span>
-                            )}
-                            {!record.studentId7 && !record.universityName && !record.facultyName && (
-                              <span className="text-gray-400">（学生情報なし）</span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* ステータス選択 */}
-                        <select
-                          value={currentStatus}
-                          onChange={(e) => {
-                            const newStatus = e.target.value as OfferStatus;
-                            const newHistory = history.map(h => 
-                              h.id === record.id ? { ...h, offerStatus: newStatus } : h
-                            );
-                            saveHistory(newHistory);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`ml-3 px-3 py-1.5 text-xs rounded bg-white border border-gray-300 font-medium text-gray-700 ${
-                            currentStatus === "offered" ? "border-b-2 border-b-blue-500" :
-                            currentStatus === "applied" ? "border-b-2 border-b-green-500" :
-                            currentStatus === "on_hold" ? "border-b-2 border-b-yellow-500" :
-                            currentStatus === "declined" ? "border-b-2 border-b-red-500" : ""
-                          }`}
-                        >
-                          {OFFER_STATUS_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                        
-                        {/* 削除ボタン */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm("この履歴を削除しますか？")) {
-                              const newHistory = history.filter(h => h.id !== record.id);
-                              saveHistory(newHistory);
-                            }
-                          }}
-                          className="ml-3 text-xs text-red-400 hover:text-red-600 flex-shrink-0"
-                        >
-                          削除
-                        </button>
-                      </div>
-                    </div>
-                  );
-                });
-              })()
-            )}
-          </div>
-
-          {/* DB有効時: DBインポート機能 */}
-          {DB_ENABLED && history.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-dashed">
-              <p className="text-xs text-gray-500 mb-2">
-                ローカル履歴をDBに一括投入
-              </p>
-              <button
-                onClick={async () => {
-                  if (!confirm(`${history.length}件の履歴をDBにインポートしますか？`)) return;
-                  try {
-                    const records = history.map((h) => ({
-                      sentAt: h.createdAt,
-                      templateType: h.pattern,
-                      finalMessage: h.generatedMessage,
-                      sourceText: h.pasteText,
-                    }));
-                    const res = await fetch("/api/admin/import-deliveries", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ records }),
-                    });
-                    const data = await res.json();
-                    if (res.ok) {
-                      alert(`完了: ${data.inserted}件追加, ${data.skipped}件スキップ`);
-                    } else {
-                      alert(`エラー: ${data.error}`);
-                    }
-                  } catch (err) {
-                    alert(`エラー: ${err instanceof Error ? err.message : "不明"}`);
-                  }
-                }}
-                className="px-3 py-1.5 text-xs font-medium bg-orange-100 text-orange-700 rounded border border-orange-300 hover:bg-orange-200"
-              >
-                ローカル履歴をDBに投入
-              </button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

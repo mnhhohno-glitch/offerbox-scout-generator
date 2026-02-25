@@ -82,51 +82,6 @@ function formatDateTime(isoString: string | null): string {
   return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth() + 1).padStart(2, "0")}/${String(jst.getUTCDate()).padStart(2, "0")} ${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
 }
 
-// ダミーデータ生成用
-function generateDummyData(count: number): Delivery[] {
-  const statuses = ["none", "approved", "on_hold", "cancelled"];
-  const templates = ["A", "B"];
-  const timeSlots = ["00-05", "06-11", "12-17", "18-23"];
-  const universities = ["東京大学", "京都大学", "早稲田大学", "慶應義塾大学", "明治大学", "青山学院大学", "立教大学", "中央大学", "法政大学", "日本大学"];
-  const genders: ("male" | "female" | "other")[] = ["male", "female", "other"];
-  const faculties = ["経済学部", "経営学部", "法学部", "工学部", "理学部", "文学部", "教育学部"];
-  
-  return Array.from({ length: count }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - Math.floor(Math.random() * 30));
-    date.setHours(Math.floor(Math.random() * 24));
-    date.setMinutes(Math.floor(Math.random() * 60));
-    
-    const templateType = templates[Math.floor(Math.random() * templates.length)];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
-    const faculty = faculties[Math.floor(Math.random() * faculties.length)];
-    const university = universities[Math.floor(Math.random() * universities.length)];
-    const gender = genders[Math.floor(Math.random() * genders.length)];
-    
-    return {
-      id: `dummy-${i}-${Date.now()}`,
-      createdAt: date.toISOString(),
-      sentAt: date.toISOString(),
-      sendDate: date.toISOString().slice(0, 10),
-      timeSlot: timeSlots[Math.floor(date.getHours() / 6)],
-      templateType,
-      finalMessage: templateType === "A" 
-        ? `【${faculty}で学ばれている点に興味を持ちました】\n\n初めまして。\nスタートライン新卒採用責任者の船戸です。\n\nプロフィールを拝見し、${faculty}で学ばれている内容に興味を持ちました。\nぜひ一度お話したくご連絡しました！\n\n当社は「スタッフを大切にする企業」として、社員がイキイキと働ける環境づくりに力を入れています。\n\nまずは気軽にお話ししませんか？\nカジュアル面談でお待ちしています！`
-        : `◆就活相談OK｜カジュアル面談\n\nはじめまして。\n株式会社スタートライン 新卒採用責任者の船戸です。\n\nプロフィールを拝見し、${faculty}で学ばれている点に興味を持ち、ご連絡しました。\n\n就活やキャリアについて、何でも相談してください。\nカジュアルにお話ししましょう！`,
-      sourceText: `氏名: テスト太郎${i + 1}\n学部: ${faculty}\n大学名: ${university}\n性別: ${gender === "male" ? "男性" : gender === "female" ? "女性" : "その他"}\nID: ${String(1000000 + i).slice(0, 7)}\n最終ログイン: ${date.toLocaleDateString("ja-JP")} ${date.toLocaleTimeString("ja-JP").slice(0, 5)}`,
-      studentId7: String(1000000 + i).slice(0, 7),
-      universityName: university,
-      gender: gender,
-      lastLoginAt: new Date(date.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-      offerStatus: status,
-      approvedAt: status === "approved" ? date.toISOString() : null,
-      onHoldAt: status === "on_hold" ? date.toISOString() : null,
-      cancelledAt: status === "cancelled" ? date.toISOString() : null,
-      notes: null,
-    };
-  });
-}
-
 export default function DeliveriesPage() {
   const isStaging = useIsStaging();
   const [items, setItems] = useState<Delivery[]>([]);
@@ -134,7 +89,6 @@ export default function DeliveriesPage() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [useDummyData, setUseDummyData] = useState(false);
 
   // フィルタ
   const [sendDateFrom, setSendDateFrom] = useState("");
@@ -186,29 +140,10 @@ export default function DeliveriesPage() {
   }, [page, sendDateFrom, sendDateTo, timeSlot, templateType, studentId7, offerStatus]);
 
   useEffect(() => {
-    if (useDummyData) {
-      // ダミーデータモード
-      const dummyItems = generateDummyData(127);
-      const start = (page - 1) * pageSize;
-      setItems(dummyItems.slice(start, start + pageSize));
-      setTotal(dummyItems.length);
-      setLoading(false);
-    } else if (DB_ENABLED) {
+    if (DB_ENABLED) {
       fetchDeliveries();
     }
-  }, [fetchDeliveries, useDummyData, page]);
-
-  const handleLoadDummyData = () => {
-    setUseDummyData(true);
-    setPage(1);
-    setError(null);
-  };
-
-  const handleClearDummyData = () => {
-    setUseDummyData(false);
-    setItems([]);
-    setTotal(0);
-  };
+  }, [fetchDeliveries, page]);
 
   const handleSearch = () => {
     setPage(1);
@@ -266,10 +201,6 @@ export default function DeliveriesPage() {
 
   // CSVエクスポート
   const handleExportCSV = async () => {
-    if (useDummyData) {
-      alert("ダミーデータはCSVエクスポートできません");
-      return;
-    }
 
     // 件数チェック（警告）
     if (total > CSV_EXPORT_WARNING_THRESHOLD && !showExportWarning) {
@@ -324,18 +255,12 @@ export default function DeliveriesPage() {
     setShowExportWarning(false);
   };
 
-  if (!DB_ENABLED && !useDummyData) {
+  if (!DB_ENABLED) {
     return (
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="mx-auto max-w-6xl">
           <h1 className="mb-6 text-2xl font-bold text-gray-800">配信履歴</h1>
           <p className="text-gray-600 mb-4">データベースが設定されていません。</p>
-          <button
-            onClick={handleLoadDummyData}
-            className="px-4 py-2 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 mr-2"
-          >
-            ダミーデータでプレビュー
-          </button>
           <Link href="/" className="text-blue-600 hover:underline mt-4 inline-block">
             ← トップに戻る
           </Link>
@@ -346,35 +271,19 @@ export default function DeliveriesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      {/* STAGINGバナー or ダミーデータバナー（本番では非表示） */}
-      {(isStaging || useDummyData) && (
-        <div className={`fixed top-0 left-0 right-0 z-50 text-center py-2 shadow-md ${useDummyData ? "bg-purple-500" : "bg-yellow-500"}`}>
-          <span className={`font-bold text-sm tracking-wider ${useDummyData ? "text-white" : "text-black"}`}>
-            {useDummyData ? "ダミーデータ表示中（UIプレビューモード）" : "STAGING 環境 - 本番ではありません"}
+      {/* STAGINGバナー（本番では非表示） */}
+      {isStaging && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-center py-2 shadow-md">
+          <span className="font-bold text-sm tracking-wider text-black">
+            STAGING 環境 - 本番ではありません
           </span>
         </div>
       )}
 
-      <div className={`mx-auto max-w-6xl ${isStaging || useDummyData ? "pt-10" : ""}`}>
+      <div className={`mx-auto max-w-6xl ${isStaging ? "pt-10" : ""}`}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-800">配信履歴</h1>
-            {useDummyData && (
-              <button
-                onClick={handleClearDummyData}
-                className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded border border-red-300 hover:bg-red-200"
-              >
-                ダミーデータをクリア
-              </button>
-            )}
-            {!useDummyData && (
-              <button
-                onClick={handleLoadDummyData}
-                className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded border border-purple-300 hover:bg-purple-200"
-              >
-                ダミーデータで表示
-              </button>
-            )}
           </div>
           <div className="flex gap-2">
             <Link
