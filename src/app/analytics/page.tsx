@@ -6,21 +6,15 @@ import Link from "next/link";
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || APP_ENV === "staging";
 
-// 本番URLリスト（これらのホストではSTAGINGバナーを非表示）
-const PRODUCTION_HOSTS = [
-  "offerbox-scout-generator-production.up.railway.app",
-  "localhost",
-];
-
-// IS_STAGINGはクライアントサイドで動的に判定
+// URLでSTAGING環境かどうかを判定（環境変数に依存しない）
 function useIsStaging(): boolean {
   const [isStaging, setIsStaging] = useState(false);
   
   useEffect(() => {
     const hostname = window.location.hostname;
-    const isProductionHost = PRODUCTION_HOSTS.some(h => hostname.includes(h));
-    const envIsStaging = APP_ENV === "staging";
-    setIsStaging(envIsStaging && !isProductionHost);
+    // "staging"がURL/ホスト名に含まれている場合のみSTAGINGと判定
+    const isStagingUrl = hostname.includes("staging");
+    setIsStaging(isStagingUrl);
   }, []);
   
   return isStaging;
