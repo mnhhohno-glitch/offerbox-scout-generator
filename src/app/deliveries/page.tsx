@@ -2,6 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import {
+  getGenderLabel,
+  extractFacultyName,
+  extractDepartmentName,
+  extractPrefecture,
+  extractGraduationYear,
+} from "@/lib/extraction-utils";
 
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || APP_ENV === "staging";
@@ -45,20 +52,6 @@ interface Delivery {
   notes: string | null;
 }
 
-// 性別ラベル変換
-function getGenderLabel(gender: string | null): string {
-  switch (gender) {
-    case "male":
-      return "男性";
-    case "female":
-      return "女性";
-    case "other":
-      return "その他";
-    default:
-      return "-";
-  }
-}
-
 interface DeliveriesResponse {
   items: Delivery[];
   total: number;
@@ -67,10 +60,13 @@ interface DeliveriesResponse {
 }
 
 const STATUS_OPTIONS = [
-  { value: "none", label: "未処理", color: "bg-gray-200 text-gray-700" },
+  { value: "none", label: "オファー済", color: "bg-blue-500 text-white" },
+  { value: "offered", label: "オファー済", color: "bg-blue-500 text-white" },
   { value: "approved", label: "承認", color: "bg-green-500 text-white" },
+  { value: "applied", label: "承認", color: "bg-green-500 text-white" },
   { value: "on_hold", label: "保留", color: "bg-yellow-500 text-white" },
-  { value: "cancelled", label: "取消", color: "bg-red-500 text-white" },
+  { value: "cancelled", label: "辞退", color: "bg-red-500 text-white" },
+  { value: "declined", label: "辞退", color: "bg-red-500 text-white" },
 ];
 
 const TIME_SLOTS = ["00-05", "06-11", "12-17", "18-23"];
@@ -161,11 +157,12 @@ export default function DeliveriesPage() {
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
+    const normalized = { offered: "none", declined: "cancelled", applied: "approved" }[newStatus] ?? newStatus;
     try {
       const res = await fetch(`/api/deliveries/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: normalized }),
       });
 
       if (!res.ok) throw new Error("ステータス更新に失敗しました");
@@ -176,7 +173,7 @@ export default function DeliveriesPage() {
           item.id === id
             ? {
                 ...item,
-                offerStatus: newStatus,
+                offerStatus: normalized,
                 approvedAt: newStatus === "approved" ? new Date().toISOString() : null,
                 onHoldAt: newStatus === "on_hold" ? new Date().toISOString() : null,
                 cancelledAt: newStatus === "cancelled" ? new Date().toISOString() : null,
@@ -360,7 +357,7 @@ export default function DeliveriesPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">ステータス</label>
+              <label className="block text-xs text-gray-600 mb-1">選考</label>
               <select
                 value={offerStatus}
                 onChange={(e) => setOfferStatus(e.target.value)}
@@ -469,11 +466,14 @@ export default function DeliveriesPage() {
               <thead className="bg-gray-100">
                 <tr>
                   <th className="px-3 py-2 text-left whitespace-nowrap">配信日時</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">利用者番号</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">大学名</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">ID(7桁)</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">大学</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">学部学科</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">居住地</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">選考</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">性別</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">テンプレ</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">ステータス</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">卒業年度</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">パターン</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">状態日付</th>
                   <th className="px-3 py-2 text-left min-w-[200px]">スカウト文</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">操作</th>
@@ -482,9 +482,15 @@ export default function DeliveriesPage() {
               <tbody>
                 {items.map((item) => {
                   const isExpanded = expandedId === item.id;
+                  const src = item.sourceText || "";
+                  const faculty = extractFacultyName(src);
+                  const dept = extractDepartmentName(src);
+                  const facultyDept = [faculty, dept].filter(Boolean).join(" ") || "-";
+                  const prefecture = extractPrefecture(src) || "-";
+                  const graduation = extractGraduationYear(src) || "-";
                   const statusDate = item.offerStatus === "approved" ? item.approvedAt
                     : item.offerStatus === "on_hold" ? item.onHoldAt
-                    : item.offerStatus === "cancelled" ? item.cancelledAt
+                    : ["cancelled", "declined"].includes(item.offerStatus) ? item.cancelledAt
                     : null;
                   const messagePreview = item.finalMessage.length > 100
                     ? item.finalMessage.slice(0, 100) + "..."
@@ -493,18 +499,10 @@ export default function DeliveriesPage() {
                   return (
                     <tr key={item.id} className="border-t hover:bg-gray-50 align-top">
                       <td className="px-3 py-2 whitespace-nowrap">{formatDateTime(item.sentAt)}</td>
-                      <td className="px-3 py-2 font-mono whitespace-nowrap">{item.studentId7 || "-"}</td>
+                      <td className="px-3 py-2 font-mono whitespace-nowrap text-blue-600">{item.studentId7 || "-"}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{item.universityName || "-"}</td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">{getGenderLabel(item.gender)}</td>
-                      <td className="px-3 py-2 text-center">
-                        <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                            item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
-                          }`}
-                        >
-                          {item.templateType}
-                        </span>
-                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">{facultyDept}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{prefecture}</td>
                       <td className="px-3 py-2">
                         <select
                           value={item.offerStatus}
@@ -520,6 +518,17 @@ export default function DeliveriesPage() {
                             </option>
                           ))}
                         </select>
+                      </td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap">{getGenderLabel(item.gender)}</td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap">{graduation}</td>
+                      <td className="px-3 py-2 text-center">
+                        <span
+                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
+                            item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
+                          }`}
+                        >
+                          {item.templateType === "A" ? "A" : "B"}
+                        </span>
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
                         {statusDate ? formatDateTime(statusDate) : "-"}

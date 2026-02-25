@@ -103,8 +103,10 @@ export function getGenderLabel(gender: string | null): string {
       return "女性";
     case "other":
       return "その他";
+    case "unknown":
+      return "不明";
     default:
-      return "-";
+      return gender ? String(gender) : "-";
   }
 }
 
@@ -182,6 +184,32 @@ export function extractPrefecture(text: string): string | null {
       return pref;
     }
   }
+
+  return null;
+}
+
+// 卒業年度の抽出（例: 2026年卒, 26卒, 卒業予定: 2026年3月）
+export function extractGraduationYear(text: string): string | null {
+  if (!text) return null;
+
+  // パターン1: "2026年卒" "2027年卒業"
+  const pattern1 = /(\d{4})年卒(業)?/;
+  const m1 = text.match(pattern1);
+  if (m1) return `${m1[1]}卒`;
+
+  // パターン2: "26卒" "27卒"（西暦下2桁）
+  const pattern2 = /(\d{2})卒/;
+  const m2 = text.match(pattern2);
+  if (m2) {
+    const yy = parseInt(m2[1], 10);
+    const year = yy >= 0 && yy <= 50 ? 2000 + yy : 1900 + yy;
+    return `${year}卒`;
+  }
+
+  // パターン3: "卒業予定: 2026年3月" "卒業：2027年"
+  const pattern3 = /卒業(予定)?\s*[:：]?\s*(\d{4})年/;
+  const m3 = text.match(pattern3);
+  if (m3) return `${m3[2]}卒`;
 
   return null;
 }

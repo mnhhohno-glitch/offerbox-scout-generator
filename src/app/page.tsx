@@ -39,10 +39,13 @@ function formatDateTime(isoString: string | null): string {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  none: "未処理",
+  none: "オファー済",
+  offered: "オファー済",
   approved: "承認",
+  applied: "承認",
   on_hold: "保留",
-  cancelled: "取消",
+  cancelled: "辞退",
+  declined: "辞退",
 };
 
 // URLでSTAGING環境かどうかを判定（環境変数に依存しない）
@@ -917,7 +920,7 @@ export default function Home() {
                             {formatDateTime(item.sentAt)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            {STATUS_LABELS[item.offerStatus] || item.offerStatus}
+                            {STATUS_LABELS[item.offerStatus] || item.offerStatus || "不明"}
                           </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-700 ml-9">

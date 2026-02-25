@@ -3,15 +3,25 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  getGenderLabel,
+  extractFacultyName,
+  extractDepartmentName,
+  extractPrefecture,
+  extractGraduationYear,
+} from "@/lib/extraction-utils";
 
-// DBのofferStatus値（deliveriesテーブル）
-type OfferStatus = "none" | "approved" | "on_hold" | "cancelled";
+// DBのofferStatus値（オファー済/承認/辞退/保留）
+type OfferStatus = "none" | "offered" | "approved" | "applied" | "on_hold" | "cancelled" | "declined";
 
-const OFFER_STATUS_OPTIONS: { value: OfferStatus; label: string }[] = [
-  { value: "none", label: "未処理" },
+const OFFER_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "none", label: "オファー済" },
+  { value: "offered", label: "オファー済" },
   { value: "approved", label: "承認" },
+  { value: "applied", label: "承認" },
   { value: "on_hold", label: "保留" },
-  { value: "cancelled", label: "取消" },
+  { value: "cancelled", label: "辞退" },
+  { value: "declined", label: "辞退" },
 ];
 
 const GENDER_OPTIONS = [
@@ -121,17 +131,18 @@ export default function HistoryDetailPage() {
     }
   };
 
-  const handleStatusChange = async (newStatus: OfferStatus) => {
+  const handleStatusChange = async (newStatus: string) => {
     if (!record) return;
+    const normalized = { offered: "none", declined: "cancelled", applied: "approved" }[newStatus] ?? newStatus;
 
     try {
       const res = await fetch(`/api/deliveries/${record.id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: normalized }),
       });
       if (res.ok) {
-        setRecord({ ...record, offerStatus: newStatus });
+        setRecord({ ...record, offerStatus: normalized });
       } else {
         alert("ステータスの更新に失敗しました");
       }
@@ -220,7 +231,13 @@ export default function HistoryDetailPage() {
     );
   }
 
-  const currentStatus = (record.offerStatus || "none") as OfferStatus;
+  const currentStatus = record.offerStatus || "none";
+  const src = record.sourceText || "";
+  const faculty = extractFacultyName(src);
+  const dept = extractDepartmentName(src);
+  const facultyDept = [faculty, dept].filter(Boolean).join(" ") || "";
+  const prefecture = extractPrefecture(src) || "";
+  const graduation = extractGraduationYear(src) || "";
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4 lg:px-8">
@@ -276,7 +293,7 @@ export default function HistoryDetailPage() {
             </div>
 
             <div className="mb-5">
-              <label className="block text-xs font-medium text-gray-600 mb-2">オファーステータス</label>
+              <label className="block text-xs font-medium text-gray-600 mb-2">選考</label>
               <select
                 value={currentStatus}
                 onChange={(e) => handleStatusChange(e.target.value as OfferStatus)}
@@ -311,7 +328,7 @@ export default function HistoryDetailPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">大学名</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">大学</label>
                   <input
                     type="text"
                     value={editUniversityName}
@@ -319,6 +336,18 @@ export default function HistoryDetailPage() {
                     placeholder="○○大学"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">学部学科</label>
+                  <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">{facultyDept || "-"}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">居住地（都道府県）</label>
+                  <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">{prefecture || "-"}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">卒業年度（◯◯卒）</label>
+                  <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">{graduation || "-"}</p>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">性別</label>
@@ -334,7 +363,7 @@ export default function HistoryDetailPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">テンプレ</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">パターン</label>
                   <select
                     value={editPattern}
                     onChange={(e) => setEditPattern(e.target.value as "A" | "B")}
