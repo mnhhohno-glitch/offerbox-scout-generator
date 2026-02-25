@@ -95,9 +95,6 @@ export default function DeliveriesPage() {
   // コピー状態
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // スカウト文展開状態
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
   // CSVエクスポート状態
   const [exporting, setExporting] = useState(false);
   const [showExportWarning, setShowExportWarning] = useState(false);
@@ -300,7 +297,7 @@ export default function DeliveriesPage() {
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">配信日（から）</label>
+              <label className="block text-xs text-gray-900 mb-1">配信日（から）</label>
               <input
                 type="date"
                 value={sendDateFrom}
@@ -309,7 +306,7 @@ export default function DeliveriesPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">配信日（まで）</label>
+              <label className="block text-xs text-gray-900 mb-1">配信日（まで）</label>
               <input
                 type="date"
                 value={sendDateTo}
@@ -318,7 +315,7 @@ export default function DeliveriesPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">時間帯</label>
+              <label className="block text-xs text-gray-900 mb-1">時間帯</label>
               <select
                 value={timeSlot}
                 onChange={(e) => setTimeSlot(e.target.value)}
@@ -333,7 +330,7 @@ export default function DeliveriesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">テンプレ</label>
+              <label className="block text-xs text-gray-900 mb-1">テンプレ</label>
               <select
                 value={templateType}
                 onChange={(e) => setTemplateType(e.target.value)}
@@ -345,7 +342,7 @@ export default function DeliveriesPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">学生ID</label>
+              <label className="block text-xs text-gray-900 mb-1">学生ID</label>
               <input
                 type="text"
                 value={studentId7}
@@ -355,7 +352,7 @@ export default function DeliveriesPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">選考</label>
+              <label className="block text-xs text-gray-900 mb-1">選考</label>
               <select
                 value={offerStatus}
                 onChange={(e) => setOfferStatus(e.target.value)}
@@ -429,24 +426,24 @@ export default function DeliveriesPage() {
 
         {/* 件数・ページング */}
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-900">
             全{total}件中 {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)}件表示
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1 || loading}
-              className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+              className="px-3 py-1 text-sm border rounded disabled:opacity-50 text-gray-900"
             >
               前へ
             </button>
-            <span className="text-sm">
+            <span className="text-sm text-gray-900">
               {page} / {totalPages || 1}
             </span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages || loading}
-              className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+              className="px-3 py-1 text-sm border rounded disabled:opacity-50 text-gray-900"
             >
               次へ
             </button>
@@ -455,33 +452,31 @@ export default function DeliveriesPage() {
 
         {/* テーブル */}
         {loading ? (
-          <div className="text-center py-8 text-gray-500">読み込み中...</div>
+          <div className="text-center py-8 text-gray-900">読み込み中...</div>
         ) : items.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">データがありません</div>
+          <div className="text-center py-8 text-gray-900">データがありません</div>
         ) : (
           <div className="bg-white rounded-lg shadow overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-100">
                 <tr>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">配信日時</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">ID(7桁)</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">大学</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">学部学科</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">専攻</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">選考中項目</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">居住地</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">選考</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">性別</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">卒業年度</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">パターン</th>
-                  <th className="px-3 py-2 text-left whitespace-nowrap">状態日付</th>
-                  <th className="px-3 py-2 text-left min-w-[200px]">スカウト文</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap">操作</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">配信日時</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">ID(7桁)</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">大学</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">学部学科</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">専攻</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">選考中項目</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">居住地</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">選考</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">性別</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">卒業年度</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">パターン</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">状態日付</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => {
-                  const isExpanded = expandedId === item.id;
                   const src = item.sourceText || "";
                   let notesObj: { facultyDepartment?: string; prefecture?: string; graduationYear?: string; major?: string; selectionItem?: string } = {};
                   try {
@@ -499,9 +494,6 @@ export default function DeliveriesPage() {
                     : item.offerStatus === "on_hold" ? item.onHoldAt
                     : ["cancelled", "declined"].includes(item.offerStatus) ? item.cancelledAt
                     : null;
-                  const messagePreview = item.finalMessage.length > 100
-                    ? item.finalMessage.slice(0, 100) + "..."
-                    : item.finalMessage;
 
                   return (
                     <tr key={item.id} className="border-t hover:bg-gray-50 align-top">
@@ -539,23 +531,8 @@ export default function DeliveriesPage() {
                           {item.templateType === "A" ? "A" : "B"}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                      <td className="px-3 py-2 text-xs text-gray-900 whitespace-nowrap">
                         {statusDate ? formatDateTime(statusDate) : "-"}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="max-w-xs">
-                          <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
-                            {isExpanded ? item.finalMessage : messagePreview}
-                          </p>
-                          {item.finalMessage.length > 100 && (
-                            <button
-                              onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                              className="mt-1 text-xs text-blue-600 hover:underline"
-                            >
-                              {isExpanded ? "▲ 閉じる" : "▼ 全文表示"}
-                            </button>
-                          )}
-                        </div>
                       </td>
                       <td className="px-3 py-2 text-center">
                         <button

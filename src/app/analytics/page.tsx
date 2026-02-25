@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="flex items-end gap-4">
             <div>
-              <label className="block text-xs text-gray-600 mb-1">配信日（から）*</label>
+              <label className="block text-xs text-gray-900 mb-1">配信日（から）*</label>
               <input
                 type="date"
                 value={sendDateFrom}
@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-600 mb-1">配信日（まで）*</label>
+              <label className="block text-xs text-gray-900 mb-1">配信日（まで）*</label>
               <input
                 type="date"
                 value={sendDateTo}
@@ -164,7 +164,7 @@ export default function AnalyticsPage() {
               {loading ? "読み込み中..." : "集計"}
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-900 mt-2">
             * 期間指定は必須です（パフォーマンス対策）
           </p>
         </div>
@@ -181,26 +181,26 @@ export default function AnalyticsPage() {
           <>
             {/* サマリー */}
             <div className="bg-white rounded-lg shadow p-4 mb-6">
-              <h2 className="text-lg font-semibold mb-3">集計サマリー</h2>
+              <h2 className="text-lg font-semibold mb-3 text-gray-900">集計サマリー</h2>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="bg-gray-100 rounded p-3">
-                  <p className="text-2xl font-bold">{totalCount}</p>
-                  <p className="text-xs text-gray-600">合計</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
+                  <p className="text-xs text-gray-900">合計</p>
                 </div>
                 <div className="bg-green-100 rounded p-3">
                   <p className="text-2xl font-bold text-green-700">{totalA}</p>
-                  <p className="text-xs text-gray-600">Aパターン</p>
+                  <p className="text-xs text-gray-900">Aパターン</p>
                 </div>
                 <div className="bg-orange-100 rounded p-3">
                   <p className="text-2xl font-bold text-orange-700">{totalB}</p>
-                  <p className="text-xs text-gray-600">Bパターン</p>
+                  <p className="text-xs text-gray-900">Bパターン</p>
                 </div>
               </div>
             </div>
 
             {/* 詳細テーブル */}
             {dates.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-900">
                 指定期間にデータがありません
               </div>
             ) : (
@@ -208,13 +208,13 @@ export default function AnalyticsPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-3 py-2 text-left">配信日</th>
+                      <th className="px-3 py-2 text-left text-gray-900">配信日</th>
                       {TIME_SLOTS.map((slot) => (
-                        <th key={slot} colSpan={2} className="px-3 py-2 text-center border-l">
+                        <th key={slot} colSpan={2} className="px-3 py-2 text-center border-l text-gray-900">
                           {slot}
                         </th>
                       ))}
-                      <th colSpan={2} className="px-3 py-2 text-center border-l bg-gray-200">
+                      <th colSpan={2} className="px-3 py-2 text-center border-l bg-gray-200 text-gray-900">
                         日計
                       </th>
                     </tr>
@@ -245,7 +245,7 @@ export default function AnalyticsPage() {
 
                       return (
                         <tr key={date} className="border-t hover:bg-gray-50">
-                          <td className="px-3 py-2 font-medium">{date}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">{date}</td>
                           {TIME_SLOTS.map((slot) => {
                             const countA = countMap.get(`${date}-${slot}-A`) || 0;
                             const countB = countMap.get(`${date}-${slot}-B`) || 0;
