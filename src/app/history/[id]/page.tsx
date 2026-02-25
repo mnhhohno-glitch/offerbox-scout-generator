@@ -26,6 +26,12 @@ const GENDER_OPTIONS = [
   { value: "female", label: "女性" },
 ];
 
+const MAJOR_OPTIONS = [
+  { value: "", label: "選択してください" },
+  { value: "文系", label: "文系" },
+  { value: "理系", label: "理系" },
+];
+
 const GRADUATION_OPTIONS = [
   { value: "", label: "選択してください" },
   { value: "26卒", label: "26卒" },
@@ -85,6 +91,7 @@ export default function HistoryDetailPage() {
   const [editPrefecture, setEditPrefecture] = useState("");
   const [editGraduationYear, setEditGraduationYear] = useState("");
   const [editMajor, setEditMajor] = useState("");
+  const [editSelectionItem, setEditSelectionItem] = useState("");
   const [editGender, setEditGender] = useState("");
   const [editPattern, setEditPattern] = useState<"A" | "B">("A");
   const [editScoutMessage, setEditScoutMessage] = useState("");
@@ -106,7 +113,7 @@ export default function HistoryDetailPage() {
         }
         const data: DeliveryRecord = await res.json();
         setRecord(data);
-        let notesObj: { facultyDepartment?: string; prefecture?: string; graduationYear?: string; major?: string } = {};
+        let notesObj: { facultyDepartment?: string; prefecture?: string; graduationYear?: string; major?: string; selectionItem?: string } = {};
         try {
           if (data.notes) notesObj = JSON.parse(data.notes);
         } catch { /* ignore */ }
@@ -116,7 +123,9 @@ export default function HistoryDetailPage() {
         setEditFacultyDept(notesObj.facultyDepartment ?? [extractFacultyName(src), extractDepartmentName(src)].filter(Boolean).join(" ") ?? "");
         setEditPrefecture(notesObj.prefecture ?? extractPrefecture(src) ?? "");
         setEditGraduationYear(notesObj.graduationYear ?? extractGraduationYear(src) ?? "");
-        setEditMajor(notesObj.major ?? extractMajor(src) ?? "");
+        const rawMajor = notesObj.major ?? extractMajor(src) ?? "";
+        setEditMajor((rawMajor === "文系" || rawMajor === "理系") ? rawMajor : "");
+        setEditSelectionItem(notesObj.selectionItem ?? "");
         setEditGender((data.gender === "male" || data.gender === "female") ? data.gender : "");
         setEditPattern((data.templateType as "A" | "B") || "A");
         setEditScoutMessage(data.finalMessage || "");
@@ -201,6 +210,7 @@ export default function HistoryDetailPage() {
           prefecture: editPrefecture,
           graduationYear: editGraduationYear,
           major: editMajor,
+          selectionItem: editSelectionItem,
         }),
       });
       if (res.ok) {
@@ -405,25 +415,25 @@ export default function HistoryDetailPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">専攻</label>
-                  <input
-                    type="text"
+                  <select
                     value={editMajor}
                     onChange={(e) => setEditMajor(e.target.value)}
-                    placeholder="文系/教育系など"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">性別</label>
-                  <select
-                    value={editGender}
-                    onChange={(e) => setEditGender(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    {GENDER_OPTIONS.map(opt => (
+                    {MAJOR_OPTIONS.map(opt => (
                       <option key={opt.value || "blank"} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">選考中項目</label>
+                  <input
+                    type="text"
+                    value={editSelectionItem}
+                    onChange={(e) => setEditSelectionItem(e.target.value)}
+                    placeholder="選考中項目"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">パターン</label>
@@ -436,6 +446,18 @@ export default function HistoryDetailPage() {
                   >
                     <option value="A">Aパターン</option>
                     <option value="B">Bパターン</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">性別</label>
+                  <select
+                    value={editGender}
+                    onChange={(e) => setEditGender(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {GENDER_OPTIONS.map(opt => (
+                      <option key={opt.value || "blank"} value={opt.value}>{opt.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>

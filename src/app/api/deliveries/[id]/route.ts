@@ -34,6 +34,7 @@ interface NotesData {
   prefecture?: string;
   graduationYear?: string;
   major?: string;
+  selectionItem?: string;
 }
 
 // PATCH: 配信レコードの編集
@@ -52,6 +53,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       prefecture,
       graduationYear,
       major,
+      selectionItem,
     } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +64,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (gender !== undefined) updateData.gender = (gender === "male" || gender === "female") ? gender : null;
     if (templateType !== undefined) updateData.templateType = templateType;
 
-    if (facultyDepartment !== undefined || prefecture !== undefined || graduationYear !== undefined || major !== undefined) {
+    if (facultyDepartment !== undefined || prefecture !== undefined || graduationYear !== undefined || major !== undefined || selectionItem !== undefined) {
       const existing = await prisma.delivery.findUnique({ where: { id }, select: { notes: true } });
       let notesObj: NotesData = {};
       try {
@@ -74,6 +76,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       if (prefecture !== undefined) notesObj.prefecture = prefecture || "";
       if (graduationYear !== undefined) notesObj.graduationYear = graduationYear || "";
       if (major !== undefined) notesObj.major = major || "";
+      if (selectionItem !== undefined) notesObj.selectionItem = selectionItem || "";
       updateData.notes = JSON.stringify(notesObj);
     }
 

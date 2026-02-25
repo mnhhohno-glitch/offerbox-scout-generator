@@ -468,6 +468,7 @@ export default function DeliveriesPage() {
                   <th className="px-3 py-2 text-left whitespace-nowrap">大学</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">学部学科</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">専攻</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">選考中項目</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">居住地</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">選考</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">性別</th>
@@ -482,14 +483,16 @@ export default function DeliveriesPage() {
                 {items.map((item) => {
                   const isExpanded = expandedId === item.id;
                   const src = item.sourceText || "";
-                  let notesObj: { facultyDepartment?: string; prefecture?: string; graduationYear?: string; major?: string } = {};
+                  let notesObj: { facultyDepartment?: string; prefecture?: string; graduationYear?: string; major?: string; selectionItem?: string } = {};
                   try {
                     if (item.notes) notesObj = JSON.parse(item.notes);
                   } catch { /* ignore */ }
                   const faculty = extractFacultyName(src);
                   const dept = extractDepartmentName(src);
                   const facultyDept = (notesObj.facultyDepartment ?? [faculty, dept].filter(Boolean).join(" ")) || "-";
-                  const major = (notesObj.major ?? extractMajor(src)) || "-";
+                  const rawMajor = notesObj.major ?? extractMajor(src);
+                  const major = (rawMajor === "文系" || rawMajor === "理系") ? rawMajor : (rawMajor || "-");
+                  const selectionItem = notesObj.selectionItem || "-";
                   const prefecture = (notesObj.prefecture ?? extractPrefecture(src)) || "-";
                   const graduation = (notesObj.graduationYear ?? extractGraduationYear(src)) || "-";
                   const statusDate = item.offerStatus === "approved" ? item.approvedAt
@@ -507,6 +510,7 @@ export default function DeliveriesPage() {
                       <td className="px-3 py-2 whitespace-nowrap">{item.universityName || "-"}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{facultyDept}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{major}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{selectionItem}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{prefecture}</td>
                       <td className="px-3 py-2">
                         <select
