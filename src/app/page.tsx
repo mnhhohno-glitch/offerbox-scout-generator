@@ -1,14 +1,49 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   extractFacultyName as extractFacultyFromUtils,
+  getGenderLabel,
 } from "@/lib/extraction-utils";
 
 // 環境変数からアプリ環境を取得
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
 const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || APP_ENV === "staging";
+
+// DB配信レコード型
+interface DeliveryItem {
+  id: string;
+  sentAt: string;
+  templateType: string;
+  finalMessage: string;
+  studentId7: string | null;
+  universityName: string | null;
+  gender: string | null;
+  offerStatus: string;
+}
+
+interface DeliveriesResponse {
+  items: DeliveryItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+function formatDateTime(isoString: string | null): string {
+  if (!isoString) return "-";
+  const d = new Date(isoString);
+  const jst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  return `${jst.getUTCFullYear()}/${String(jst.getUTCMonth() + 1).padStart(2, "0")}/${String(jst.getUTCDate()).padStart(2, "0")} ${String(jst.getUTCHours()).padStart(2, "0")}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  none: "未処理",
+  approved: "承認",
+  on_hold: "保留",
+  cancelled: "取消",
+};
 
 // URLでSTAGING環境かどうかを判定（環境変数に依存しない）
 function useIsStaging(): boolean {
@@ -386,8 +421,33 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPreview, setSelectedPreview] = useState<"mobile" | "pc">("mobile");
-  
+
+  // 配信履歴（DBから取得）
+  const [historyItems, setHistoryItems] = useState<DeliveryItem[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   const router = useRouter();
+
+  const fetchHistory = useCallback(async () => {
+    if (!DB_ENABLED) return;
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/deliveries?page=1&pageSize=20");
+      if (!res.ok) return;
+      const data: DeliveriesResponse = await res.json();
+      setHistoryItems(data.items);
+      setHistoryTotal(data.total);
+    } catch {
+      // 無視
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
   
   // Gemini出力を一時保存（履歴保存時に使用）
   const [currentGeminiOutputs, setCurrentGeminiOutputs] = useState<{
@@ -580,6 +640,7 @@ export default function Home() {
           });
           if (dbRes.ok) {
             setCopyStatus("コピーしました - DBに保存済み");
+            fetchHistory();
           } else {
             console.error("DB保存エラー:", await dbRes.text());
             setCopyStatus("コピーしました（DB保存エラー）");
@@ -813,15 +874,72 @@ export default function Home() {
           </div>
         )}
 
-        {/* 配信履歴へのリンク */}
+        {/* 送信履歴セクション（DBから取得） */}
         {DB_ENABLED && (
           <div className="mt-8 border-t pt-6">
-            <a
-              href="/deliveries"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              配信履歴を確認する →
-            </a>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-gray-600">
+                送信履歴（{historyTotal}件）
+              </span>
+              <Link
+                href="/deliveries"
+                className="text-sm text-blue-600 hover:underline"
+              >
+                配信履歴を確認する →
+              </Link>
+            </div>
+
+            {historyLoading ? (
+              <p className="text-sm text-gray-400">読み込み中...</p>
+            ) : historyItems.length === 0 ? (
+              <p className="text-sm text-gray-400">履歴がありません</p>
+            ) : (
+              <div className="space-y-2">
+                {historyItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg bg-white shadow-sm border border-gray-100 hover:border-gray-200 transition-colors"
+                  >
+                    <div
+                      onClick={() => router.push(`/history/${item.id}`)}
+                      className="flex items-center p-3 cursor-pointer hover:bg-gray-50 -m-0 rounded-lg"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white flex-shrink-0 ${
+                              item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
+                            }`}
+                          >
+                            {item.templateType}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatDateTime(item.sentAt)}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {STATUS_LABELS[item.offerStatus] || item.offerStatus}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-700 ml-9">
+                          {item.studentId7 && (
+                            <span className="font-mono text-blue-600">{item.studentId7}</span>
+                          )}
+                          {item.universityName && (
+                            <span>{item.universityName}</span>
+                          )}
+                          {item.gender && (
+                            <span>{getGenderLabel(item.gender)}</span>
+                          )}
+                          {!item.studentId7 && !item.universityName && (
+                            <span className="text-gray-400">（学生情報なし）</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
