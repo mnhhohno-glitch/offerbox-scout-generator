@@ -14,8 +14,21 @@ import {
 
 // 環境変数からアプリ環境を取得
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
-const IS_STAGING = APP_ENV === "staging";
-const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || IS_STAGING;
+const DB_ENABLED = process.env.NEXT_PUBLIC_DB_ENABLED === "true" || APP_ENV === "staging";
+
+// URLでSTAGING環境かどうかを判定（環境変数に依存しない）
+function useIsStaging(): boolean {
+  const [isStaging, setIsStaging] = useState(false);
+  
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    // "staging"がURL/ホスト名に含まれている場合のみSTAGINGと判定
+    const isStagingUrl = hostname.includes("staging");
+    setIsStaging(isStagingUrl);
+  }, []);
+  
+  return isStaging;
+}
 
 // 履歴スキーマバージョン（互換性管理用）
 const HISTORY_SCHEMA_VERSION = 4;
@@ -423,6 +436,7 @@ function formatForPC(text: string): string {
 }
 
 export default function Home() {
+  const isStaging = useIsStaging();
   const [pasteText, setPasteText] = useState("");
   const [pattern, setPattern] = useState<"A" | "B" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
@@ -853,7 +867,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       {/* STAGINGバナー */}
-      {IS_STAGING && (
+      {isStaging && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-center py-2 shadow-md">
           <span className="font-bold text-black text-sm tracking-wider">
             STAGING 環境 - 本番ではありません
@@ -861,7 +875,7 @@ export default function Home() {
         </div>
       )}
       
-      <div className={`mx-auto max-w-3xl ${IS_STAGING ? "pt-10" : ""}`}>
+      <div className={`mx-auto max-w-3xl ${isStaging ? "pt-10" : ""}`}>
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-800">
             OfferBox スカウト文生成
