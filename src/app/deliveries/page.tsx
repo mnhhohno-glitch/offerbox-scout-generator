@@ -497,13 +497,13 @@ export default function DeliveriesPage() {
 
                   return (
                     <tr key={item.id} className="border-t hover:bg-gray-50 align-top">
-                      <td className="px-3 py-2 whitespace-nowrap">{formatDateTime(item.sentAt)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{formatDateTime(item.sentAt)}</td>
                       <td className="px-3 py-2 font-mono whitespace-nowrap text-blue-600">{item.studentId7 || "-"}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{item.universityName || "-"}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{facultyDept}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{major}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{selectionItem}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">{prefecture}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{item.universityName || "-"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{facultyDept}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{major}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{selectionItem}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{prefecture}</td>
                       <td className="px-3 py-2">
                         <select
                           value={{ offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus}
@@ -520,8 +520,8 @@ export default function DeliveriesPage() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">{getGenderLabel(item.gender)}</td>
-                      <td className="px-3 py-2 text-center whitespace-nowrap">{graduation}</td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap text-gray-900">{getGenderLabel(item.gender) || "-"}</td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap text-gray-900">{graduation}</td>
                       <td className="px-3 py-2 text-center">
                         <span
                           className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
@@ -540,7 +540,7 @@ export default function DeliveriesPage() {
                           className={`px-2 py-1 text-xs rounded ${
                             copiedId === item.id
                               ? "bg-green-500 text-white"
-                              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              : "bg-gray-200 text-gray-900 hover:bg-gray-300"
                           }`}
                         >
                           {copiedId === item.id ? "コピー済" : "コピー"}

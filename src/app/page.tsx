@@ -48,6 +48,13 @@ const STATUS_LABELS: Record<string, string> = {
   declined: "辞退",
 };
 
+const STATUS_OPTIONS = [
+  { value: "none", label: "オファー済" },
+  { value: "approved", label: "承認" },
+  { value: "on_hold", label: "保留" },
+  { value: "cancelled", label: "辞退" },
+];
+
 // URLでSTAGING環境かどうかを判定（環境変数に依存しない）
 function useIsStaging(): boolean {
   const [isStaging, setIsStaging] = useState(false);
@@ -451,6 +458,29 @@ export default function Home() {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const normalized = { offered: "none", declined: "cancelled", applied: "approved" }[newStatus] ?? newStatus;
+    try {
+      const res = await fetch(`/api/deliveries/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: normalized }),
+      });
+      if (res.ok) {
+        setHistoryItems((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, offerStatus: normalized } : item
+          )
+        );
+      } else {
+        alert("ステータスの更新に失敗しました");
+      }
+    } catch (err) {
+      console.error("ステータス更新エラー:", err);
+      alert("ステータスの更新に失敗しました");
+    }
+  };
   
   // Gemini出力を一時保存（履歴保存時に使用）
   const [currentGeminiOutputs, setCurrentGeminiOutputs] = useState<{
@@ -882,7 +912,7 @@ export default function Home() {
         {DB_ENABLED && (
           <div className="mt-8 border-t pt-6">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-900">
                 送信履歴（{historyTotal}件）
               </span>
               <Link
@@ -894,54 +924,70 @@ export default function Home() {
             </div>
 
             {historyLoading ? (
-              <p className="text-sm text-gray-400">読み込み中...</p>
+              <p className="text-sm text-gray-900">読み込み中...</p>
             ) : historyItems.length === 0 ? (
-              <p className="text-sm text-gray-400">履歴がありません</p>
+              <p className="text-sm text-gray-900">履歴がありません</p>
             ) : (
               <div className="space-y-2">
-                {historyItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-lg bg-white shadow-sm border border-gray-100 hover:border-gray-200 transition-colors"
-                  >
+                {historyItems.map((item) => {
+                  const displayStatus = { offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus ?? "none";
+                  return (
                     <div
-                      onClick={() => router.push(`/history/${item.id}`)}
-                      className="flex items-center p-3 cursor-pointer hover:bg-gray-50 -m-0 rounded-lg"
+                      key={item.id}
+                      className="rounded-lg bg-white shadow-sm border border-gray-100 hover:border-gray-200 transition-colors"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                          <span
-                            className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white flex-shrink-0 ${
-                              item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
-                            }`}
-                          >
-                            {item.templateType}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {formatDateTime(item.sentAt)}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {STATUS_LABELS[item.offerStatus] || item.offerStatus || "不明"}
-                          </span>
+                      <div
+                        onClick={() => router.push(`/history/${item.id}`)}
+                        className="flex items-center p-3 cursor-pointer hover:bg-gray-50 -m-0 rounded-lg gap-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 mb-1">
+                            <span
+                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white flex-shrink-0 ${
+                                item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
+                              }`}
+                            >
+                              {item.templateType}
+                            </span>
+                            <span className="text-xs text-gray-900">
+                              {formatDateTime(item.sentAt)}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-900 ml-9">
+                            {item.studentId7 && (
+                              <span className="font-mono text-blue-600">{item.studentId7}</span>
+                            )}
+                            {item.universityName && (
+                              <span>{item.universityName}</span>
+                            )}
+                            {item.gender && (
+                              <span>{getGenderLabel(item.gender)}</span>
+                            )}
+                            {!item.studentId7 && !item.universityName && (
+                              <span className="text-gray-500">（学生情報なし）</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-700 ml-9">
-                          {item.studentId7 && (
-                            <span className="font-mono text-blue-600">{item.studentId7}</span>
-                          )}
-                          {item.universityName && (
-                            <span>{item.universityName}</span>
-                          )}
-                          {item.gender && (
-                            <span>{getGenderLabel(item.gender)}</span>
-                          )}
-                          {!item.studentId7 && !item.universityName && (
-                            <span className="text-gray-400">（学生情報なし）</span>
-                          )}
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex-shrink-0"
+                        >
+                          <select
+                            value={displayStatus}
+                            onChange={(e) => handleStatusChange(item.id, e.target.value)}
+                            className="px-2 py-1 text-xs rounded border border-gray-300 bg-white text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            {STATUS_OPTIONS.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
