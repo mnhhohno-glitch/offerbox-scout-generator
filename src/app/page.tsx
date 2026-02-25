@@ -642,8 +642,10 @@ export default function Home() {
             }),
           });
           if (dbRes.ok) {
-            setCopyStatus("コピーしました - DBに保存済み");
-            fetchHistory();
+            const data = await dbRes.json();
+            setCopyStatus("コピーしました - 詳細画面へ遷移");
+            router.push(`/history/${data.id}`);
+            return;
           } else {
             console.error("DB保存エラー:", await dbRes.text());
             setCopyStatus("コピーしました（DB保存エラー）");
@@ -655,8 +657,7 @@ export default function Home() {
       } else {
         setCopyStatus("コピーしました");
       }
-      
-      // 1.5秒後に全てクリアして新規状態に
+
       setTimeout(() => {
         setCopyStatus(null);
         clearAllState();

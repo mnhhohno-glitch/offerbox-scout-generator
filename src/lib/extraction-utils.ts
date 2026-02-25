@@ -74,39 +74,33 @@ export function extractUniversityName(text: string): string | null {
   return null;
 }
 
-// 性別の抽出
-export type Gender = "male" | "female" | "other" | "unknown";
+// 性別の抽出（男性/女性のみ、読み取れない場合はnull）
+export type Gender = "male" | "female" | null;
 
 export function extractGender(text: string): Gender {
-  if (!text) return "unknown";
+  if (!text) return null;
 
-  // パターン: "性別: 男性" や "性別：女性"
-  const pattern = /(性別)\s*[:：]?\s*(男性|女性|その他|男|女)/;
+  const pattern = /(性別)\s*[:：]?\s*(男性|女性|男|女)/;
   const match = text.match(pattern);
-  
+
   if (match) {
     const value = match[2];
     if (value === "男性" || value === "男") return "male";
     if (value === "女性" || value === "女") return "female";
-    if (value === "その他") return "other";
   }
 
-  return "unknown";
+  return null;
 }
 
-// 性別ラベル変換
+// 性別ラベル変換（男性/女性のみ、それ以外は空白）
 export function getGenderLabel(gender: string | null): string {
   switch (gender) {
     case "male":
       return "男性";
     case "female":
       return "女性";
-    case "other":
-      return "その他";
-    case "unknown":
-      return "不明";
     default:
-      return gender ? String(gender) : "-";
+      return "";
   }
 }
 
@@ -183,6 +177,23 @@ export function extractPrefecture(text: string): string | null {
     if (text.includes(pref)) {
       return pref;
     }
+  }
+
+  return null;
+}
+
+// 専攻の抽出（文系/教育系/理系など）
+export function extractMajor(text: string): string | null {
+  if (!text) return null;
+
+  const patterns = [
+    /(文系|理系|教育系|医療系|芸術系|体育系|家政系|看護系|福祉系|工学系|農学系|法学系|経済系|商学系|社会学系|心理学系|国際系)/,
+    /専攻\s*[:：]\s*([^\n\r]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const m = text.match(pattern);
+    if (m) return m[1]?.trim() || null;
   }
 
   return null;

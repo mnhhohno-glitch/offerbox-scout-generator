@@ -10,14 +10,19 @@ const CSV_BOM = "\uFEFF";
 // ステータスラベル変換
 function getStatusLabel(status: string): string {
   switch (status) {
+    case "none":
+    case "offered":
+      return "オファー済";
     case "approved":
+    case "applied":
       return "承認";
     case "on_hold":
       return "保留";
     case "cancelled":
-      return "取消";
+    case "declined":
+      return "辞退";
     default:
-      return "未処理";
+      return status || "オファー済";
   }
 }
 

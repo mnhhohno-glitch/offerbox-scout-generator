@@ -9,26 +9,40 @@ import {
   extractDepartmentName,
   extractPrefecture,
   extractGraduationYear,
+  extractMajor,
 } from "@/lib/extraction-utils";
 
-// DBのofferStatus値（オファー済/承認/辞退/保留）
-type OfferStatus = "none" | "offered" | "approved" | "applied" | "on_hold" | "cancelled" | "declined";
-
+// 選考: オファー済/承認/辞退/保留（4つのみ、重複なし）
 const OFFER_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "none", label: "オファー済" },
-  { value: "offered", label: "オファー済" },
   { value: "approved", label: "承認" },
-  { value: "applied", label: "承認" },
   { value: "on_hold", label: "保留" },
   { value: "cancelled", label: "辞退" },
-  { value: "declined", label: "辞退" },
 ];
 
 const GENDER_OPTIONS = [
+  { value: "", label: "選択してください" },
   { value: "male", label: "男性" },
   { value: "female", label: "女性" },
-  { value: "other", label: "その他" },
-  { value: "unknown", label: "不明" },
+];
+
+const GRADUATION_OPTIONS = [
+  { value: "", label: "選択してください" },
+  { value: "26卒", label: "26卒" },
+  { value: "27卒", label: "27卒" },
+  { value: "28卒", label: "28卒" },
+  { value: "29卒", label: "29卒" },
+  { value: "30卒", label: "30卒" },
+];
+
+const PREFECTURES = [
+  "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
+  "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
+  "新潟県", "富山県", "石川県", "福井県", "山梨県", "長野県", "岐阜県",
+  "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府", "兵庫県",
+  "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県",
+  "徳島県", "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県",
+  "熊本県", "大分県", "宮崎県", "鹿児島県", "沖縄県",
 ];
 
 // DBのDelivery型
@@ -46,6 +60,7 @@ interface DeliveryRecord {
   gender: string | null;
   lastLoginAt: string | null;
   offerStatus: string;
+  notes: string | null;
 }
 
 const CARD_HEIGHT = 600;
@@ -66,6 +81,10 @@ export default function HistoryDetailPage() {
 
   const [editStudentId7, setEditStudentId7] = useState("");
   const [editUniversityName, setEditUniversityName] = useState("");
+  const [editFacultyDept, setEditFacultyDept] = useState("");
+  const [editPrefecture, setEditPrefecture] = useState("");
+  const [editGraduationYear, setEditGraduationYear] = useState("");
+  const [editMajor, setEditMajor] = useState("");
   const [editGender, setEditGender] = useState("");
   const [editPattern, setEditPattern] = useState<"A" | "B">("A");
   const [editScoutMessage, setEditScoutMessage] = useState("");
@@ -87,9 +106,18 @@ export default function HistoryDetailPage() {
         }
         const data: DeliveryRecord = await res.json();
         setRecord(data);
+        let notesObj: { facultyDepartment?: string; prefecture?: string; graduationYear?: string; major?: string } = {};
+        try {
+          if (data.notes) notesObj = JSON.parse(data.notes);
+        } catch { /* ignore */ }
+        const src = data.sourceText || "";
         setEditStudentId7(data.studentId7 || "");
         setEditUniversityName(data.universityName || "");
-        setEditGender(data.gender || "unknown");
+        setEditFacultyDept(notesObj.facultyDepartment ?? [extractFacultyName(src), extractDepartmentName(src)].filter(Boolean).join(" ") ?? "");
+        setEditPrefecture(notesObj.prefecture ?? extractPrefecture(src) ?? "");
+        setEditGraduationYear(notesObj.graduationYear ?? extractGraduationYear(src) ?? "");
+        setEditMajor(notesObj.major ?? extractMajor(src) ?? "");
+        setEditGender((data.gender === "male" || data.gender === "female") ? data.gender : "");
         setEditPattern((data.templateType as "A" | "B") || "A");
         setEditScoutMessage(data.finalMessage || "");
       } catch (err) {
@@ -169,6 +197,10 @@ export default function HistoryDetailPage() {
           universityName: editUniversityName || null,
           gender: editGender || null,
           templateType: editPattern,
+          facultyDepartment: editFacultyDept,
+          prefecture: editPrefecture,
+          graduationYear: editGraduationYear,
+          major: editMajor,
         }),
       });
       if (res.ok) {
@@ -231,13 +263,7 @@ export default function HistoryDetailPage() {
     );
   }
 
-  const currentStatus = record.offerStatus || "none";
-  const src = record.sourceText || "";
-  const faculty = extractFacultyName(src);
-  const dept = extractDepartmentName(src);
-  const facultyDept = [faculty, dept].filter(Boolean).join(" ") || "";
-  const prefecture = extractPrefecture(src) || "";
-  const graduation = extractGraduationYear(src) || "";
+  const currentStatus = { offered: "none", declined: "cancelled", applied: "approved" }[record.offerStatus] ?? record.offerStatus ?? "none";
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4 lg:px-8">
@@ -296,7 +322,7 @@ export default function HistoryDetailPage() {
               <label className="block text-xs font-medium text-gray-600 mb-2">選考</label>
               <select
                 value={currentStatus}
-                onChange={(e) => handleStatusChange(e.target.value as OfferStatus)}
+                onChange={(e) => handleStatusChange(e.target.value)}
                 className={`px-3 py-2 text-sm rounded-lg bg-white border-2 font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   currentStatus === "none" ? "border-gray-400" :
                   currentStatus === "approved" ? "border-green-400" :
@@ -339,15 +365,53 @@ export default function HistoryDetailPage() {
                 </div>
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">学部学科</label>
-                  <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">{facultyDept || "-"}</p>
+                  <input
+                    type="text"
+                    value={editFacultyDept}
+                    onChange={(e) => setEditFacultyDept(e.target.value)}
+                    placeholder="家政学部 児童学科"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">居住地（都道府県）</label>
-                  <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">{prefecture || "-"}</p>
+                  <select
+                    value={editPrefecture}
+                    onChange={(e) => setEditPrefecture(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">選択してください</option>
+                    {PREFECTURES.map(pref => (
+                      <option key={pref} value={pref}>{pref}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">卒業年度（◯◯卒）</label>
-                  <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">{graduation || "-"}</p>
+                  <select
+                    value={editGraduationYear}
+                    onChange={(e) => setEditGraduationYear(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {[
+                      ...GRADUATION_OPTIONS,
+                      ...(editGraduationYear && !GRADUATION_OPTIONS.some(o => o.value === editGraduationYear)
+                        ? [{ value: editGraduationYear, label: editGraduationYear }]
+                        : []),
+                    ].map(opt => (
+                      <option key={opt.value || "blank"} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">専攻</label>
+                  <input
+                    type="text"
+                    value={editMajor}
+                    onChange={(e) => setEditMajor(e.target.value)}
+                    placeholder="文系/教育系など"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">性別</label>
@@ -356,9 +420,8 @@ export default function HistoryDetailPage() {
                     onChange={(e) => setEditGender(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">選択してください</option>
                     {GENDER_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={opt.value || "blank"} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>

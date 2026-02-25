@@ -8,6 +8,7 @@ import {
   extractDepartmentName,
   extractPrefecture,
   extractGraduationYear,
+  extractMajor,
 } from "@/lib/extraction-utils";
 
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV || "production";
@@ -61,12 +62,9 @@ interface DeliveriesResponse {
 
 const STATUS_OPTIONS = [
   { value: "none", label: "オファー済", color: "bg-blue-500 text-white" },
-  { value: "offered", label: "オファー済", color: "bg-blue-500 text-white" },
   { value: "approved", label: "承認", color: "bg-green-500 text-white" },
-  { value: "applied", label: "承認", color: "bg-green-500 text-white" },
   { value: "on_hold", label: "保留", color: "bg-yellow-500 text-white" },
   { value: "cancelled", label: "辞退", color: "bg-red-500 text-white" },
-  { value: "declined", label: "辞退", color: "bg-red-500 text-white" },
 ];
 
 const TIME_SLOTS = ["00-05", "06-11", "12-17", "18-23"];
@@ -157,7 +155,7 @@ export default function DeliveriesPage() {
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    const normalized = { offered: "none", declined: "cancelled", applied: "approved" }[newStatus] ?? newStatus;
+    const normalized = newStatus;
     try {
       const res = await fetch(`/api/deliveries/${id}/status`, {
         method: "PATCH",
@@ -469,6 +467,7 @@ export default function DeliveriesPage() {
                   <th className="px-3 py-2 text-left whitespace-nowrap">ID(7桁)</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">大学</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">学部学科</th>
+                  <th className="px-3 py-2 text-left whitespace-nowrap">専攻</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap">居住地</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">選考</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap">性別</th>
@@ -483,11 +482,16 @@ export default function DeliveriesPage() {
                 {items.map((item) => {
                   const isExpanded = expandedId === item.id;
                   const src = item.sourceText || "";
+                  let notesObj: { facultyDepartment?: string; prefecture?: string; graduationYear?: string; major?: string } = {};
+                  try {
+                    if (item.notes) notesObj = JSON.parse(item.notes);
+                  } catch { /* ignore */ }
                   const faculty = extractFacultyName(src);
                   const dept = extractDepartmentName(src);
-                  const facultyDept = [faculty, dept].filter(Boolean).join(" ") || "-";
-                  const prefecture = extractPrefecture(src) || "-";
-                  const graduation = extractGraduationYear(src) || "-";
+                  const facultyDept = (notesObj.facultyDepartment ?? [faculty, dept].filter(Boolean).join(" ")) || "-";
+                  const major = (notesObj.major ?? extractMajor(src)) || "-";
+                  const prefecture = (notesObj.prefecture ?? extractPrefecture(src)) || "-";
+                  const graduation = (notesObj.graduationYear ?? extractGraduationYear(src)) || "-";
                   const statusDate = item.offerStatus === "approved" ? item.approvedAt
                     : item.offerStatus === "on_hold" ? item.onHoldAt
                     : ["cancelled", "declined"].includes(item.offerStatus) ? item.cancelledAt
@@ -502,13 +506,14 @@ export default function DeliveriesPage() {
                       <td className="px-3 py-2 font-mono whitespace-nowrap text-blue-600">{item.studentId7 || "-"}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{item.universityName || "-"}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{facultyDept}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{major}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{prefecture}</td>
                       <td className="px-3 py-2">
                         <select
-                          value={item.offerStatus}
+                          value={{ offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus}
                           onChange={(e) => handleStatusChange(item.id, e.target.value)}
                           className={`px-2 py-1 rounded text-xs font-medium ${
-                            STATUS_OPTIONS.find((o) => o.value === item.offerStatus)?.color ||
+                            STATUS_OPTIONS.find((o) => o.value === ({ offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus))?.color ||
                             "bg-gray-200"
                           }`}
                         >
