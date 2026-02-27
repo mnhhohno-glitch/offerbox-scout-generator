@@ -498,7 +498,14 @@ export default function DeliveriesPage() {
                   return (
                     <tr key={item.id} className="border-t hover:bg-gray-50 align-top">
                       <td className="px-3 py-2 whitespace-nowrap text-gray-900">{formatDateTime(item.sentAt)}</td>
-                      <td className="px-3 py-2 font-mono whitespace-nowrap text-blue-600">{item.studentId7 || "-"}</td>
+                      <td className="px-3 py-2 font-mono whitespace-nowrap">
+                        <Link
+                          href={`/history/${item.id}`}
+                          className="text-blue-600 hover:underline hover:text-blue-800"
+                        >
+                          {item.studentId7 || "-"}
+                        </Link>
+                      </td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-900">{item.universityName || "-"}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-900">{facultyDept}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-gray-900">{major}</td>
@@ -535,16 +542,24 @@ export default function DeliveriesPage() {
                         {statusDate ? formatDateTime(statusDate) : "-"}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        <button
-                          onClick={() => handleCopy(item.finalMessage, item.id)}
-                          className={`px-2 py-1 text-xs rounded ${
-                            copiedId === item.id
-                              ? "bg-green-500 text-white"
-                              : "bg-gray-200 text-gray-900 hover:bg-gray-300"
-                          }`}
-                        >
-                          {copiedId === item.id ? "コピー済" : "コピー"}
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <Link
+                            href={`/history/${item.id}`}
+                            className="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
+                          >
+                            詳細
+                          </Link>
+                          <button
+                            onClick={() => handleCopy(item.finalMessage, item.id)}
+                            className={`px-2 py-1 text-xs rounded ${
+                              copiedId === item.id
+                                ? "bg-green-500 text-white"
+                                : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+                            }`}
+                          >
+                            {copiedId === item.id ? "コピー済" : "コピー"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
