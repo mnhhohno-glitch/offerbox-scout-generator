@@ -54,6 +54,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       graduationYear,
       major,
       selectionItem,
+      openStatus,
     } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,6 +64,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (universityName !== undefined) updateData.universityName = universityName || null;
     if (gender !== undefined) updateData.gender = (gender === "male" || gender === "female") ? gender : null;
     if (templateType !== undefined) updateData.templateType = templateType;
+    if (openStatus !== undefined) {
+      const validOpenStatuses = ["opened", "unopened", "unknown"];
+      if (validOpenStatuses.includes(openStatus)) {
+        updateData.openStatus = openStatus;
+      }
+    }
 
     if (facultyDepartment !== undefined || prefecture !== undefined || graduationYear !== undefined || major !== undefined || selectionItem !== undefined) {
       const existing = await prisma.delivery.findUnique({ where: { id }, select: { notes: true } });

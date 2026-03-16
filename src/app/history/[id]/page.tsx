@@ -20,6 +20,12 @@ const OFFER_STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "cancelled", label: "辞退" },
 ];
 
+const OPEN_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "unknown", label: "未選択" },
+  { value: "opened", label: "開封済" },
+  { value: "unopened", label: "未開封" },
+];
+
 const GENDER_OPTIONS = [
   { value: "", label: "選択してください" },
   { value: "male", label: "男性" },
@@ -66,6 +72,7 @@ interface DeliveryRecord {
   gender: string | null;
   lastLoginAt: string | null;
   offerStatus: string;
+  openStatus: string;
   notes: string | null;
 }
 
@@ -186,6 +193,26 @@ export default function HistoryDetailPage() {
     } catch (err) {
       console.error("ステータス更新エラー:", err);
       alert("ステータスの更新に失敗しました");
+    }
+  };
+
+  const handleOpenStatusChange = async (newOpenStatus: string) => {
+    if (!record) return;
+
+    try {
+      const res = await fetch(`/api/deliveries/${record.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ openStatus: newOpenStatus }),
+      });
+      if (res.ok) {
+        setRecord({ ...record, openStatus: newOpenStatus });
+      } else {
+        alert("開封ステータスの更新に失敗しました");
+      }
+    } catch (err) {
+      console.error("開封ステータス更新エラー:", err);
+      alert("開封ステータスの更新に失敗しました");
     }
   };
 
@@ -328,24 +355,43 @@ export default function HistoryDetailPage() {
               </button>
             </div>
 
-            <div className="mb-5">
-              <label className="block text-xs font-medium text-gray-600 mb-2">選考</label>
-              <select
-                value={currentStatus}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                className={`px-3 py-2 text-sm rounded-lg bg-white border-2 font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  currentStatus === "none" ? "border-gray-400" :
-                  currentStatus === "approved" ? "border-green-400" :
-                  currentStatus === "on_hold" ? "border-yellow-400" :
-                  currentStatus === "cancelled" ? "border-red-400" : "border-gray-300"
-                }`}
-              >
-                {OFFER_STATUS_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+            <div className="mb-5 flex gap-6">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-2">選考</label>
+                <select
+                  value={currentStatus}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  className={`px-3 py-2 text-sm rounded-lg bg-white border-2 font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    currentStatus === "none" ? "border-gray-400" :
+                    currentStatus === "approved" ? "border-green-400" :
+                    currentStatus === "on_hold" ? "border-yellow-400" :
+                    currentStatus === "cancelled" ? "border-red-400" : "border-gray-300"
+                  }`}
+                >
+                  {OFFER_STATUS_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-2">開封</label>
+                <select
+                  value={record.openStatus ?? "unknown"}
+                  onChange={(e) => handleOpenStatusChange(e.target.value)}
+                  className={`px-3 py-2 text-sm rounded-lg bg-white border-2 font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    (record.openStatus ?? "unknown") === "opened" ? "border-green-400" :
+                    (record.openStatus ?? "unknown") === "unopened" ? "border-red-400" : "border-gray-300"
+                  }`}
+                >
+                  {OPEN_STATUS_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto pr-2">

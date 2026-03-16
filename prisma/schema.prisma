@@ -21,6 +21,7 @@ model Delivery {
   gender        String?   @map("gender")
   lastLoginAt   DateTime? @map("last_login_at") @db.Timestamptz
   offerStatus   String    @default("none") @map("offer_status")
+  openStatus    String    @default("unknown") @map("open_status")
   approvedAt    DateTime? @map("approved_at") @db.Timestamptz
   onHoldAt      DateTime? @map("on_hold_at") @db.Timestamptz
   cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz
