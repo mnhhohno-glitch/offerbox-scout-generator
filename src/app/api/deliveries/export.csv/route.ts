@@ -26,6 +26,18 @@ function getStatusLabel(status: string): string {
   }
 }
 
+// 開封ステータスラベル変換
+function getOpenStatusLabel(openStatus: string | null): string {
+  switch (openStatus) {
+    case "opened":
+      return "開封済";
+    case "unopened":
+      return "未開封";
+    default:
+      return "未選択";
+  }
+}
+
 // ステータスに応じた日付を取得
 function getStatusDate(
   status: string,
@@ -138,6 +150,7 @@ export async function GET(request: NextRequest) {
       "性別",
       "最終ログイン日時(JST)",
       "オファー状態",
+      "開封ステータス",
       "状態日付(JST)",
       "スカウト文",
     ];
@@ -158,6 +171,7 @@ export async function GET(request: NextRequest) {
         getGenderLabel(d.gender),
         formatJSTDateTimeForCSV(d.lastLoginAt),
         getStatusLabel(d.offerStatus),
+        getOpenStatusLabel(d.openStatus),
         formatJSTDateTimeForCSV(statusDate),
         d.finalMessage,
       ];
