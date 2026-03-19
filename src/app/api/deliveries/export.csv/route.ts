@@ -147,6 +147,8 @@ export async function GET(request: NextRequest) {
       "テンプレ",
       "利用者番号",
       "大学名",
+      "学部学科",
+      "専攻中項目",
       "性別",
       "最終ログイン日時(JST)",
       "オファー状態",
@@ -160,6 +162,17 @@ export async function GET(request: NextRequest) {
     csv += createCSVRow(headers);
 
     for (const d of deliveries) {
+      let facultyDepartment = "";
+      let selectionItem = "";
+      if (d.notes) {
+        try {
+          const notes = JSON.parse(d.notes);
+          facultyDepartment = notes.facultyDepartment ?? "";
+          selectionItem = notes.selectionItem ?? "";
+        } catch {
+          // invalid JSON — leave as empty
+        }
+      }
       const statusDate = getStatusDate(d.offerStatus, d.approvedAt, d.onHoldAt, d.cancelledAt);
       const row = [
         formatJSTDateTimeForCSV(d.sentAt),
@@ -168,6 +181,8 @@ export async function GET(request: NextRequest) {
         d.templateType,
         d.studentId7,
         d.universityName,
+        facultyDepartment,
+        selectionItem,
         getGenderLabel(d.gender),
         formatJSTDateTimeForCSV(d.lastLoginAt),
         getStatusLabel(d.offerStatus),
