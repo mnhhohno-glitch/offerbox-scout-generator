@@ -73,19 +73,13 @@ function generateDedupeKey(record: HistoryRecord): string {
   return `${record.createdAt}-${textHash}`;
 }
 
-// Aパターン用あいさつ文を生成（titleはGemini生成、サブパターンで分岐）
-function buildGreetingA(title: string, subPattern: "A1" | "A2" | "A3"): string {
-  if (subPattern === "A1") {
-    return `【${title}】
-
-初めまして。
-スタートライン新卒採用責任者の船戸です。
-今回は【一次面接確約】のご案内です！`;
+// Aパターン用タイトル行を生成（titleはGemini生成の訴求部分）
+function buildTitleLine(title: string, subPattern: "A1" | "A2" | "A3"): string {
+  switch (subPattern) {
+    case "A1": return `【一次面接確約】${title}`;
+    case "A2": return title;
+    case "A3": return `【15分の個別面談】${title}`;
   }
-  return `【${title}】
-
-初めまして。
-スタートライン新卒採用責任者の船戸です。`;
 }
 
 // Bパターン用テンプレート（{{B_PROFILE_LINE}}を1文だけGemini生成で差し替え）
@@ -152,28 +146,44 @@ const B_TEMPLATE_TEXT = `◆就活相談OK｜カジュアル面談
 新卒採用責任者　船戸`;
 
 // A1パターン用固定文（①説明会誘致＋一次面接確約オファー）
-const FIXED_TEXT_A1 = `◆当社の事業は一言で言うと…
-「人と企業をつなぐHRソリューション企業」
-（架け橋となり、採用～定着～活躍を支援）
+const FIXED_TEXT_A1 = `はじめまして。
+株式会社スタートライン
+新卒採用責任者の船戸です。
 
-この仕事の面白さは、強みや個性を見つけ、
-その人に合わせ活躍できる環境を整えていくこと。
-そうした関わりを通じて、人にも企業にも
-長く価値を届けられる仕事です。
+今回は、
+【説明会参加後、一次面接確約】で
+ご案内したくご連絡しました！
 
-「誰かの成長に関わりたい」
-「人にも企業にも価値を届けたい」
-そんな想いがある方には、
-きっと面白い仕事です。
+当社は
+人と企業をつなぐだけではなく、
+採用から定着、活躍までを支援する
+HRソリューション企業です。
 
-◆説明会では…
-・事業内容（他社との違い）
-・仕事内容ややりがい
+仕事では、
+一人ひとりの強みや個性を見つけ、
+その人に合った活躍環境を整えていきます。
+
+目の前の相手に向き合いながら、
+人にも企業にも
+長く価値を届けていけることが、
+この仕事の面白さです。
+
+「相手に深く向き合う仕事がしたい」
+「人や組織に役立つ実感を持ちたい」
+
+そんな方には、
+仕事内容を具体的に知っていただける
+機会になると思います。
+
+◆説明会でお伝えすること
+
+・事業内容と他社との違い
+・仕事内容とやりがい
 ・入社後のキャリアイメージ
-を具体的にお伝えします。
 
 ◆選考フロー
-※変更となる可能性があります。
+※変更となる可能性があります
+
 説明会
 ↓
 一次面接【確約】
@@ -186,46 +196,64 @@ const FIXED_TEXT_A1 = `◆当社の事業は一言で言うと…
 ↓
 内定
 
-また、オファーボックス経由で
-予約いただいた方には
-【仕事密着動画】もお送りしています◎
+また、
+オファーボックス経由で
+ご予約いただいた方には、
+【仕事密着動画】もお送りします。
 ※オファー承諾後、予約いただいた方が対象です
 
-ご承諾後、そのまま予約に進んでいただけます。
-なお、説明会日程が合わない場合は
-個別で日程調整も可能です。
+ご承諾後は、
+そのまま予約に進んでいただけます。
+日程が合わない場合は、
+個別調整も可能です。
 
-少しでもご興味があれば、
+少しでも関心をお持ちいただけたら、
 ぜひご承諾ください！
 
-お話できるのを楽しみにしています！
+お話しできるのを楽しみにしています！
 
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
 // A2パターン用固定文（②説明会誘致オファー）
-const FIXED_TEXT_A2 = `◆当社の事業は一言で言うと…
-「人と企業をつなぐHRソリューション企業」
-（架け橋となり、採用～定着～活躍を支援）
+const FIXED_TEXT_A2 = `はじめまして。
+株式会社スタートライン
+新卒採用責任者の船戸です。
 
-この仕事の面白さは、強みや個性を見つけ、
-その人に合わせ活躍できる環境を整えていくこと。
-そうした関わりを通じて、人にも企業にも
-長く価値を届けられる仕事です。
+今回ご連絡したのは、
+まずは選考前に
+当社の仕事や事業について
+知っていただきたいと考えたためです！
 
-「誰かの成長に関わりたい」
-「人にも企業にも価値を届けたい」
-そんな想いがある方には、
-きっと面白い仕事です。
+当社は、
+人と企業をつなぐだけではなく、
+採用から定着、活躍までを支援する
+HRソリューション企業です。
 
-◆説明会では…
-・事業内容（他社との違い）
+仕事では、
+一人ひとりの強みや個性を見つけ、
+その人に合った活躍環境を整えていきます。
+
+単に人を紹介するだけではなく、
+人にも企業にも
+長く価値を届けていく仕事です。
+
+「人に向き合う仕事に興味がある」
+「誰かの可能性を広げる仕事がしたい」
+
+そんな方には、
+まず仕事内容を具体的に知っていただける
+機会になると思います。
+
+◆説明会でお伝えすること
+
+・事業内容と他社との違い
 ・仕事内容ややりがい
 ・入社後のキャリアイメージ
-を具体的にお伝えします。
 
 ◆選考フロー
-※変更となる可能性があります。
+※変更となる可能性があります
+
 説明会
 ↓
 一次面接
@@ -238,60 +266,71 @@ const FIXED_TEXT_A2 = `◆当社の事業は一言で言うと…
 ↓
 内定
 
-また、オファーボックス経由で
-予約いただいた方には
-【仕事密着動画】もお送りしています◎
+また、
+オファーボックス経由で
+ご予約いただいた方には、
+【仕事密着動画】もお送りします。
 ※オファー承諾後、予約いただいた方が対象です
 
-ご承諾後、そのまま予約に進んでいただけます。
-なお、説明会日程が合わない場合は
-個別で日程調整も可能です。
+ご承諾後は、
+そのまま予約に進んでいただけます。
+日程が合わない場合は、
+個別調整も可能です。
 
-少しでもご興味があれば、
+少しでも気になる点があれば、
 ぜひご承諾ください！
 
-お話できるのを楽しみにしています！
+お話しできるのを楽しみにしています！
 
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
 // A3パターン用固定文（③カジュアル面談誘致オファー）
-const FIXED_TEXT_A3 = `今回は通常の説明会ではなく、
-個別にお話しできる
-【カジュアル面談】のご案内です。
+const FIXED_TEXT_A3 = `はじめまして。
+株式会社スタートライン
+新卒採用責任者の船戸です。
+
+今回は通常の説明会ではなく、
+【15分のカジュアル面談】を
+個別でご案内しています！
 ※承諾＝応募ではありません
 
-就活のこの時期、
+今の時期、就活を進める中で、
+
 「何が向いているのか分からない」
 「納得感をもって就活を進めたい」
-と感じることはありませんか？
 
-少しでも当てはまれば
-【15分のカジュアル面談（WEB）】で、
-気軽にお話できれば嬉しいです。
+と感じる方も多いと思います。
 
-◆当社の事業は一言で言うと…
-「人と企業をつなぐHRソリューション企業」
-（架け橋となり、採用～定着～活躍を支援）
+この面談では、
+当社の説明だけではなく、
+ご自身の強みが
+どんな仕事で活きやすいかも含めて
+具体的にお話しします。
 
-この仕事の面白さは、強みや個性を見つけ、
-その人に合わせて活躍できる環境を整えていくこと。
-そうした関わりを通じて、人にも企業にも
-長く価値を届けられる仕事です。
+当社は、
+人と企業をつなぐだけではなく、
+採用から定着、活躍までを支援する
+HRソリューション企業です。
 
-募集職種は1つだけではなく、
-ご本人の希望や適性もふまえながら
-どんな仕事で強みを活かせそうかを一緒に考えていきます。
-※サポート職で活躍している先輩社員も多くいます！
+仕事では、
+一人ひとりの強みや個性を見つけ、
+その人に合った活躍環境を整えていきます。
 
-◆カジュアル面談
-・あなたの強みがどう活かせそうか
-・業界の特徴や事業内容
+募集職種も一つではなく、
+ご本人の希望や適性をふまえながら、
+どんな仕事で力を発揮できそうかを
+考えていける環境があります。
+
+◆カジュアル面談でお伝えすること
+
+・あなたの強みが活かせそうな仕事
+・業界や事業の特徴
 ・入社3年目の先輩社員のキャリア
-を具体的にお伝えします。
 
 ◆選考フロー
-※変更となる可能性があります。
+※変更となる可能性があります
+
 カジュアル面談
 ↓
 一次面接
@@ -304,19 +343,21 @@ const FIXED_TEXT_A3 = `今回は通常の説明会ではなく、
 ↓
 内定
 
-また、オファーボックス経由で
-予約いただいた方には
-【仕事密着動画】もお送りしています◎
+また、
+オファーボックス経由で
+ご予約いただいた方には、
+【仕事密着動画】もお送りします。
 ※オファー承諾後、予約いただいた方が対象です
 
-ご承諾後、そのまま予約に進んでいただけます。
-なお、面談日程が合わない場合は
-個別で日程調整することも可能です。
+ご承諾後は、
+そのまま予約に進んでいただけます。
+日程が合わない場合は、
+個別調整も可能です。
 
-少しでもご興味があれば
-ぜひご承諾ください！
+まずは情報収集の機会として、
+ぜひ気軽にご承諾ください！
 
-お話できるのを楽しみにしています！
+お話しできるのを楽しみにしています！
 
 株式会社スタートライン
 新卒採用責任者　船戸`;
@@ -490,8 +531,7 @@ function removeNameCalling(text: string): string {
 
 // opening_messageを「。」単位で改行に正規化（最終整形）
 function normalizeOpeningByPeriod(text: string): string {
-  const END = "ぜひ一度お話したくご連絡しました！";
-  if (!text) return END;
+  if (!text) return "";
 
   // 半角スペース除去（ユーザーの手間削減）
   let t = text.replace(/ /g, "").replace(/\r\n/g, "\n").trim();
@@ -500,35 +540,21 @@ function normalizeOpeningByPeriod(text: string): string {
   t = t.replace(/\n+/g, "");
   t = t.replace(/\s+/g, "");
 
-  // ENDを必ず含め、重複は削る
-  if (t.includes(END)) {
-    const idx = t.lastIndexOf(END);
-    t = t.slice(0, idx + END.length);
-  } else {
-    if (!t.endsWith("。") && !t.endsWith("！") && !t.endsWith("!")) t += "。";
-    t += END;
-  }
-
   // 「。」で改行を作る（句点が消えるので戻す）
   const chunks = t.split("。").filter(Boolean);
   const lines = chunks.map((c, i) => {
     const isLast = i === chunks.length - 1;
-    if (isLast) return c;
+    // 最後のチャンクが「。」以外で終わる場合はそのまま
+    if (isLast) return c.endsWith("！") || c.endsWith("!") ? c : c + "。";
     return c + "。";
   });
 
-  let out = lines.join("\n");
-
-  // 最終行がENDで終わることを再保証
-  if (!out.endsWith(END)) out += "\n" + END;
-
-  return out;
+  return lines.join("\n");
 }
 
 // opening_messageを整形（句点で改行）
 function formatOpeningMessage(rawText: string): string {
-  const END = "ぜひ一度お話したくご連絡しました！";
-  if (!rawText) return END;
+  if (!rawText) return "";
 
   // 1) 基本的なクリーンアップ
   let t = rawText.replace(/\r\n/g, "\n");
@@ -536,17 +562,6 @@ function formatOpeningMessage(rawText: string): string {
   t = removeNameCalling(t); // 「〇〇さん」を除去
   t = t.replace(/　+/g, ""); // 全角スペース除去
   t = t.replace(/\n+/g, ""); // 一度改行を除去して再構成
-
-  // 2) 末尾の文を保証
-  if (t.includes(END)) {
-    const idx = t.lastIndexOf(END);
-    t = t.slice(0, idx + END.length);
-  } else {
-    if (!t.endsWith("。") && !t.endsWith("！") && !t.endsWith("!")) {
-      t += "。";
-    }
-    t += END;
-  }
 
   // 3) 句点（。）で改行する
   const lines: string[] = [];
@@ -812,7 +827,6 @@ export default function Home() {
       console.log("最終パターン:", finalPattern);
       setPattern(finalPattern);
 
-      let greeting: string;
       let formattedOpening: string;
       const geminiOutputs: typeof currentGeminiOutputs = {};
 
@@ -838,7 +852,7 @@ export default function Home() {
         }
 
         geminiOutputs.title = title;
-        greeting = buildGreetingA(title, finalPattern);
+        const titleLine = buildTitleLine(title, finalPattern);
 
         // opening_message生成（Aパターンのみ）
         const openingResponse = await fetch("/api/gemini", {
@@ -869,9 +883,9 @@ export default function Home() {
           Array.from(formattedOpening.replace(/\n/g, "")).length
         );
 
-        // greeting + opening_message + 固定文 を結合
+        // タイトル行 + 個別訴求 + 固定文 を結合
         const fixedText = getFixedTextForPattern(finalPattern);
-        const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${fixedText}`;
+        const finalMessage = `${titleLine}\n\n${formattedOpening}\n\n${fixedText}`;
         setGeneratedMessage(finalMessage);
       } else {
         // Bパターン: 学部名から1文だけGemini生成し、テンプレートに差し込む
