@@ -88,8 +88,14 @@ export default function AnalyticsPage() {
 
   // 全体合計
   const totalCount = rows.reduce((sum, r) => sum + r.count, 0);
-  const totalA = rows.filter((r) => r.templateType === "A").reduce((sum, r) => sum + r.count, 0);
+  const isAPattern = (t: string) => t === "A" || t === "A1" || t === "A2" || t === "A3";
+  const totalA = rows.filter((r) => isAPattern(r.templateType)).reduce((sum, r) => sum + r.count, 0);
+  const totalA1 = rows.filter((r) => r.templateType === "A1").reduce((sum, r) => sum + r.count, 0);
+  const totalA2 = rows.filter((r) => r.templateType === "A2").reduce((sum, r) => sum + r.count, 0);
+  const totalA3 = rows.filter((r) => r.templateType === "A3").reduce((sum, r) => sum + r.count, 0);
   const totalB = rows.filter((r) => r.templateType === "B").reduce((sum, r) => sum + r.count, 0);
+
+  const TEMPLATE_TYPES = ["A1", "A2", "A3", "B"] as const;
 
   if (!DB_ENABLED) {
     return (
@@ -182,18 +188,30 @@ export default function AnalyticsPage() {
             {/* サマリー */}
             <div className="bg-white rounded-lg shadow p-4 mb-6">
               <h2 className="text-lg font-semibold mb-3 text-gray-900">集計サマリー</h2>
-              <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
                 <div className="bg-gray-100 rounded p-3">
                   <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
                   <p className="text-xs text-gray-900">合計</p>
                 </div>
                 <div className="bg-green-100 rounded p-3">
                   <p className="text-2xl font-bold text-green-700">{totalA}</p>
-                  <p className="text-xs text-gray-900">Aパターン</p>
+                  <p className="text-xs text-gray-900">A計</p>
+                </div>
+                <div className="bg-green-50 rounded p-3">
+                  <p className="text-2xl font-bold text-green-600">{totalA1}</p>
+                  <p className="text-xs text-gray-900">A1</p>
+                </div>
+                <div className="bg-green-50 rounded p-3">
+                  <p className="text-2xl font-bold text-green-600">{totalA2}</p>
+                  <p className="text-xs text-gray-900">A2</p>
+                </div>
+                <div className="bg-green-50 rounded p-3">
+                  <p className="text-2xl font-bold text-green-600">{totalA3}</p>
+                  <p className="text-xs text-gray-900">A3</p>
                 </div>
                 <div className="bg-orange-100 rounded p-3">
                   <p className="text-2xl font-bold text-orange-700">{totalB}</p>
-                  <p className="text-xs text-gray-900">Bパターン</p>
+                  <p className="text-xs text-gray-900">B</p>
                 </div>
               </div>
             </div>
@@ -210,70 +228,59 @@ export default function AnalyticsPage() {
                     <tr>
                       <th className="px-3 py-2 text-left text-gray-900">配信日</th>
                       {TIME_SLOTS.map((slot) => (
-                        <th key={slot} colSpan={2} className="px-3 py-2 text-center border-l text-gray-900">
+                        <th key={slot} colSpan={4} className="px-3 py-2 text-center border-l text-gray-900">
                           {slot}
                         </th>
                       ))}
-                      <th colSpan={2} className="px-3 py-2 text-center border-l bg-gray-200 text-gray-900">
+                      <th colSpan={4} className="px-3 py-2 text-center border-l bg-gray-200 text-gray-900">
                         日計
                       </th>
                     </tr>
                     <tr className="bg-gray-50">
                       <th className="px-3 py-1"></th>
                       {TIME_SLOTS.map((slot) => (
-                        <>
-                          <th key={`${slot}-a`} className="px-2 py-1 text-center text-xs border-l">
-                            <span className="text-green-600">A</span>
+                        TEMPLATE_TYPES.map((tt, i) => (
+                          <th key={`${slot}-${tt}`} className={`px-1 py-1 text-center text-xs ${i === 0 ? "border-l" : ""}`}>
+                            <span className={tt === "B" ? "text-orange-600" : "text-green-600"}>{tt}</span>
                           </th>
-                          <th key={`${slot}-b`} className="px-2 py-1 text-center text-xs">
-                            <span className="text-orange-600">B</span>
-                          </th>
-                        </>
+                        ))
                       ))}
-                      <th className="px-2 py-1 text-center text-xs border-l bg-gray-100">
-                        <span className="text-green-600">A</span>
-                      </th>
-                      <th className="px-2 py-1 text-center text-xs bg-gray-100">
-                        <span className="text-orange-600">B</span>
-                      </th>
+                      {TEMPLATE_TYPES.map((tt, i) => (
+                        <th key={`total-${tt}`} className={`px-1 py-1 text-center text-xs bg-gray-100 ${i === 0 ? "border-l" : ""}`}>
+                          <span className={tt === "B" ? "text-orange-600" : "text-green-600"}>{tt}</span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {dates.map((date) => {
-                      let dayTotalA = 0;
-                      let dayTotalB = 0;
+                      const dayTotals: Record<string, number> = { A1: 0, A2: 0, A3: 0, B: 0 };
 
                       return (
                         <tr key={date} className="border-t hover:bg-gray-50">
                           <td className="px-3 py-2 font-medium text-gray-900">{date}</td>
-                          {TIME_SLOTS.map((slot) => {
-                            const countA = countMap.get(`${date}-${slot}-A`) || 0;
-                            const countB = countMap.get(`${date}-${slot}-B`) || 0;
-                            dayTotalA += countA;
-                            dayTotalB += countB;
-                            return (
-                              <>
+                          {TIME_SLOTS.map((slot) => (
+                            TEMPLATE_TYPES.map((tt, i) => {
+                              const count = countMap.get(`${date}-${slot}-${tt}`) || 0;
+                              dayTotals[tt] += count;
+                              return (
                                 <td
-                                  key={`${date}-${slot}-A`}
-                                  className="px-2 py-2 text-center border-l text-green-700"
+                                  key={`${date}-${slot}-${tt}`}
+                                  className={`px-1 py-2 text-center ${i === 0 ? "border-l" : ""} ${tt === "B" ? "text-orange-700" : "text-green-700"}`}
                                 >
-                                  {countA || "-"}
+                                  {count || "-"}
                                 </td>
-                                <td
-                                  key={`${date}-${slot}-B`}
-                                  className="px-2 py-2 text-center text-orange-700"
-                                >
-                                  {countB || "-"}
-                                </td>
-                              </>
-                            );
-                          })}
-                          <td className="px-2 py-2 text-center border-l bg-gray-50 font-medium text-green-700">
-                            {dayTotalA}
-                          </td>
-                          <td className="px-2 py-2 text-center bg-gray-50 font-medium text-orange-700">
-                            {dayTotalB}
-                          </td>
+                              );
+                            })
+                          ))}
+                          {TEMPLATE_TYPES.map((tt, i) => (
+                            <td
+                              key={`${date}-total-${tt}`}
+                              className={`px-1 py-2 text-center bg-gray-50 font-medium ${i === 0 ? "border-l" : ""} ${tt === "B" ? "text-orange-700" : "text-green-700"}`}
+                            >
+                              {dayTotals[tt]}
+                            </td>
+                          ))}
                         </tr>
                       );
                     })}

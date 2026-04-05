@@ -337,7 +337,10 @@ export default function DeliveriesPage() {
                 className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               >
                 <option value="">すべて</option>
-                <option value="A">A</option>
+                <option value="A">A（全て）</option>
+                <option value="A1">A1</option>
+                <option value="A2">A2</option>
+                <option value="A3">A3</option>
                 <option value="B">B</option>
               </select>
             </div>
@@ -531,11 +534,11 @@ export default function DeliveriesPage() {
                       <td className="px-3 py-2 text-center whitespace-nowrap text-gray-900">{graduation}</td>
                       <td className="px-3 py-2 text-center">
                         <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                            item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
+                          className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 ${
+                            item.templateType === "B" ? "bg-orange-500" : "bg-green-500"
                           }`}
                         >
-                          {item.templateType === "A" ? "A" : "B"}
+                          {item.templateType}
                         </span>
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-900 whitespace-nowrap">

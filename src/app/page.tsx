@@ -58,23 +58,24 @@ const STATUS_OPTIONS = [
 // URLでSTAGING環境かどうかを判定（環境変数に依存しない）
 function useIsStaging(): boolean {
   const [isStaging, setIsStaging] = useState(false);
-  
+
   useEffect(() => {
     const hostname = window.location.hostname;
     // "staging"がURL/ホスト名に含まれている場合のみSTAGINGと判定
     const isStagingUrl = hostname.includes("staging");
     setIsStaging(isStagingUrl);
   }, []);
-  
+
   return isStaging;
 }
 
-// Aパターン用あいさつ文を生成（titleはGemini生成）
-function buildGreetingA(title: string): string {
-  return `【${title}】
-
-初めまして。
-スタートライン新卒採用責任者の船戸です。`;
+// Aパターン用タイトル行を生成（titleはGemini生成の訴求部分）
+function buildTitleLine(title: string, subPattern: "A1" | "A2" | "A3"): string {
+  switch (subPattern) {
+    case "A1": return `【一次面接確約】${title}`;
+    case "A2": return title;
+    case "A3": return `【15分の個別面談】${title}`;
+  }
 }
 
 // Bパターン用テンプレート（{{B_PROFILE_LINE}}を1文だけGemini生成で差し替え）
@@ -140,44 +141,224 @@ const B_TEMPLATE_TEXT = `◆就活相談OK｜カジュアル面談
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
-// Aパターン用固定文（改行・記号・全角半角は1文字も変更しない）
-const FIXED_TEXT = `◆当社の事業は一言で言うと…
-「人と企業のつなぐHRソリューション企業」
-（架け橋となり、採用～定着～活躍を支援）
+// Aパターン共通グリーティング
+const GREETING = `はじめまして。
+株式会社スタートライン
+新卒採用責任者の船戸です。`;
 
-この仕事の面白さは、人の強みを見つけ、
-個性を生かした、活躍の場をつくれること。
+// A1パターン用固定文（①説明会誘致＋一次面接確約オファー）※グリーティング除外
+const FIXED_TEXT_A1 = `今回は、
+【説明会参加後、一次面接確約】で
+ご案内したくご連絡しました！
 
-◆こんな気持ちが大切です。
----------------------------
-・成長をサポートしたい
-・「ありがとう」がやりがい
-・誰かの可能性を広げたい
----------------------------
+当社は
+人と企業をつなぐだけではなく、
+採用から定着、活躍までを支援する
+HRソリューション企業です。
 
-1つでも当てはまったら
-当社の仕事は向いています！
+仕事では、
+一人ひとりの強みや個性を見つけ、
+その人に合った活躍環境を整えていきます。
 
-是非、カジュアル面談にて
-ざっくばらんにお話できれば嬉しいです！
+目の前の相手に向き合いながら、
+人にも企業にも
+長く価値を届けていけることが、
+この仕事の面白さです。
 
-承諾＝応募ではありません
-就活相談だけでも歓迎です。
-※希望する方には会社説明会をご案内(WEB)
+「相手に深く向き合う仕事がしたい」
+「人や組織に役立つ実感を持ちたい」
 
+そんな方には、
+仕事内容を具体的に知っていただける
+機会になると思います。
 
-◆働きやすさも整っています
----------------------------
-・土日祝休み／年休120日以上
-・残業20時間以下／ＷＬＢ◎
-・ジョブローテーション制度有
-※数年で本社勤務など実績多数あり
----------------------------
+◆説明会でお伝えすること
 
-お話できるのを楽しみにしています！
+・事業内容と他社との違い
+・仕事内容とやりがい
+・入社後のキャリアイメージ
+
+◆選考フロー
+※変更となる可能性があります
+
+説明会
+↓
+一次面接【確約】
+↓
+仕事理解セミナー
+↓
+二次面接
+↓
+最終面接
+↓
+内定
+
+また、
+オファーボックス経由で
+ご予約いただいた方には、
+【仕事密着動画】もお送りします。
+※オファー承諾後、予約いただいた方が対象です
+
+ご承諾後は、
+そのまま予約に進んでいただけます。
+日程が合わない場合は、
+個別調整も可能です。
+
+少しでも関心をお持ちいただけたら、
+ぜひご承諾ください！
+
+お話しできるのを楽しみにしています！
 
 株式会社スタートライン
 新卒採用責任者　船戸`;
+
+// A2パターン用固定文（②説明会誘致オファー）※グリーティング除外
+const FIXED_TEXT_A2 = `今回ご連絡したのは、
+まずは選考前に
+当社の仕事や事業について
+知っていただきたいと考えたためです！
+
+当社は、
+人と企業をつなぐだけではなく、
+採用から定着、活躍までを支援する
+HRソリューション企業です。
+
+仕事では、
+一人ひとりの強みや個性を見つけ、
+その人に合った活躍環境を整えていきます。
+
+単に人を紹介するだけではなく、
+人にも企業にも
+長く価値を届けていく仕事です。
+
+「人に向き合う仕事に興味がある」
+「誰かの可能性を広げる仕事がしたい」
+
+そんな方には、
+まず仕事内容を具体的に知っていただける
+機会になると思います。
+
+◆説明会でお伝えすること
+
+・事業内容と他社との違い
+・仕事内容ややりがい
+・入社後のキャリアイメージ
+
+◆選考フロー
+※変更となる可能性があります
+
+説明会
+↓
+一次面接
+↓
+仕事理解セミナー
+↓
+二次面接
+↓
+最終面接
+↓
+内定
+
+また、
+オファーボックス経由で
+ご予約いただいた方には、
+【仕事密着動画】もお送りします。
+※オファー承諾後、予約いただいた方が対象です
+
+ご承諾後は、
+そのまま予約に進んでいただけます。
+日程が合わない場合は、
+個別調整も可能です。
+
+少しでも気になる点があれば、
+ぜひご承諾ください！
+
+お話しできるのを楽しみにしています！
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
+// A3パターン用固定文（③カジュアル面談誘致オファー）※グリーティング除外
+const FIXED_TEXT_A3 = `今回は通常の説明会ではなく、
+【15分のカジュアル面談】を
+個別でご案内しています！
+※承諾＝応募ではありません
+
+今の時期、就活を進める中で、
+
+「何が向いているのか分からない」
+「納得感をもって就活を進めたい」
+
+と感じる方も多いと思います。
+
+この面談では、
+当社の説明だけではなく、
+ご自身の強みが
+どんな仕事で活きやすいかも含めて
+具体的にお話しします。
+
+当社は、
+人と企業をつなぐだけではなく、
+採用から定着、活躍までを支援する
+HRソリューション企業です。
+
+仕事では、
+一人ひとりの強みや個性を見つけ、
+その人に合った活躍環境を整えていきます。
+
+募集職種も一つではなく、
+ご本人の希望や適性をふまえながら、
+どんな仕事で力を発揮できそうかを
+考えていける環境があります。
+
+◆カジュアル面談でお伝えすること
+
+・あなたの強みが活かせそうな仕事
+・業界や事業の特徴
+・入社3年目の先輩社員のキャリア
+
+◆選考フロー
+※変更となる可能性があります
+
+カジュアル面談
+↓
+一次面接
+↓
+仕事理解セミナー
+↓
+二次面接
+↓
+最終面接
+↓
+内定
+
+また、
+オファーボックス経由で
+ご予約いただいた方には、
+【仕事密着動画】もお送りします。
+※オファー承諾後、予約いただいた方が対象です
+
+ご承諾後は、
+そのまま予約に進んでいただけます。
+日程が合わない場合は、
+個別調整も可能です。
+
+まずは情報収集の機会として、
+ぜひ気軽にご承諾ください！
+
+お話しできるのを楽しみにしています！
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
+// サブパターンに応じた固定テキストを返す
+function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
+  switch (subPattern) {
+    case "A1": return FIXED_TEXT_A1;
+    case "A2": return FIXED_TEXT_A2;
+    case "A3": return FIXED_TEXT_A3;
+  }
+}
 
 // 自己PR候補を抽出
 function extractPrCandidate(text: string): string {
@@ -272,6 +453,14 @@ function judgePattern(prCandidate: string): "A" | "B" {
   return charCount >= 200 ? "A" : "B";
 }
 
+// Aパターンのサブパターン振り分け（ランダム1/3ずつ）
+function judgeASubPattern(): "A1" | "A2" | "A3" {
+  const rand = Math.random();
+  if (rand < 1/3) return "A1";
+  if (rand < 2/3) return "A2";
+  return "A3";
+}
+
 // 半角スペースを除去
 function removeAsciiSpaces(text: string): string {
   return text.replace(/ /g, "");
@@ -331,8 +520,7 @@ function removeNameCalling(text: string): string {
 
 // opening_messageを「。」単位で改行に正規化（最終整形）
 function normalizeOpeningByPeriod(text: string): string {
-  const END = "ぜひ一度お話したくご連絡しました！";
-  if (!text) return END;
+  if (!text) return "";
 
   // 半角スペース除去（ユーザーの手間削減）
   let t = text.replace(/ /g, "").replace(/\r\n/g, "\n").trim();
@@ -341,35 +529,21 @@ function normalizeOpeningByPeriod(text: string): string {
   t = t.replace(/\n+/g, "");
   t = t.replace(/\s+/g, "");
 
-  // ENDを必ず含め、重複は削る
-  if (t.includes(END)) {
-    const idx = t.lastIndexOf(END);
-    t = t.slice(0, idx + END.length);
-  } else {
-    if (!t.endsWith("。") && !t.endsWith("！") && !t.endsWith("!")) t += "。";
-    t += END;
-  }
-
   // 「。」で改行を作る（句点が消えるので戻す）
   const chunks = t.split("。").filter(Boolean);
   const lines = chunks.map((c, i) => {
     const isLast = i === chunks.length - 1;
-    if (isLast) return c;
+    // 最後のチャンクが「。」以外で終わる場合はそのまま
+    if (isLast) return c.endsWith("！") || c.endsWith("!") ? c : c + "。";
     return c + "。";
   });
 
-  let out = lines.join("\n");
-
-  // 最終行がENDで終わることを再保証
-  if (!out.endsWith(END)) out += "\n" + END;
-
-  return out;
+  return lines.join("\n");
 }
 
 // opening_messageを整形（句点で改行）
 function formatOpeningMessage(rawText: string): string {
-  const END = "ぜひ一度お話したくご連絡しました！";
-  if (!rawText) return END;
+  if (!rawText) return "";
 
   // 1) 基本的なクリーンアップ
   let t = rawText.replace(/\r\n/g, "\n");
@@ -377,17 +551,6 @@ function formatOpeningMessage(rawText: string): string {
   t = removeNameCalling(t); // 「〇〇さん」を除去
   t = t.replace(/　+/g, ""); // 全角スペース除去
   t = t.replace(/\n+/g, ""); // 一度改行を除去して再構成
-
-  // 2) 末尾の文を保証
-  if (t.includes(END)) {
-    const idx = t.lastIndexOf(END);
-    t = t.slice(0, idx + END.length);
-  } else {
-    if (!t.endsWith("。") && !t.endsWith("！") && !t.endsWith("!")) {
-      t += "。";
-    }
-    t += END;
-  }
 
   // 3) 句点（。）で改行する
   const lines: string[] = [];
@@ -420,7 +583,7 @@ function formatForPC(text: string): string {
 export default function Home() {
   const isStaging = useIsStaging();
   const [pasteText, setPasteText] = useState("");
-  const [pattern, setPattern] = useState<"A" | "B" | null>(null);
+  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
   const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
@@ -527,15 +690,18 @@ export default function Home() {
       
       const judgedPattern = judgePattern(prCandidate);
       console.log("判定結果:", judgedPattern, "(200文字以上でA)");
-      setPattern(judgedPattern);
 
-      let greeting: string;
+      // Aパターンの場合はサブパターンを決定
+      const finalPattern = judgedPattern === "A" ? judgeASubPattern() : "B" as const;
+      console.log("最終パターン:", finalPattern);
+      setPattern(finalPattern);
+
       let formattedOpening: string;
       const geminiOutputs: typeof currentGeminiOutputs = {};
 
-      if (judgedPattern === "A") {
-        // Aパターン: Geminiでtitleとopening_messageを生成
-        console.log("=== Aパターン処理開始 ===");
+      if (finalPattern !== "B") {
+        // A1/A2/A3パターン: Geminiでtitleとopening_messageを生成
+        console.log(`=== ${finalPattern}パターン処理開始 ===`);
         const titleResponse = await fetch("/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -555,7 +721,7 @@ export default function Home() {
         }
 
         geminiOutputs.title = title;
-        greeting = buildGreetingA(title);
+        const titleLine = buildTitleLine(title, finalPattern);
 
         // opening_message生成（Aパターンのみ）
         const openingResponse = await fetch("/api/gemini", {
@@ -586,8 +752,9 @@ export default function Home() {
           Array.from(formattedOpening.replace(/\n/g, "")).length
         );
 
-        // greeting + opening_message + 固定文 を結合
-        const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${FIXED_TEXT}`;
+        // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
+        const fixedText = getFixedTextForPattern(finalPattern);
+        const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
         setGeneratedMessage(finalMessage);
       } else {
         // Bパターン: 学部名から1文だけGemini生成し、テンプレートに差し込む
@@ -781,8 +948,8 @@ export default function Home() {
           <div className="mb-6 rounded-lg bg-white p-4 shadow">
             <div className="flex items-center gap-4">
               <span
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-white ${
-                  pattern === "A" ? "bg-green-500" : "bg-orange-500"
+                className={`inline-flex h-10 items-center justify-center rounded-full text-lg font-bold text-white px-3 ${
+                  pattern === "B" ? "bg-orange-500" : "bg-green-500"
                 }`}
               >
                 {pattern}
@@ -790,9 +957,9 @@ export default function Home() {
               <div>
                 <p className="text-sm text-gray-600">
                   自己PR候補: {prCharCount}文字
-                  {pattern === "A" ? "（200文字以上）" : "（200文字未満）"}
+                  {pattern !== "B" ? "（200文字以上）" : "（200文字未満）"}
                 </p>
-                {pattern === "A" && openingMessageCharCount !== null && (
+                {pattern !== "B" && openingMessageCharCount !== null && (
                   <p className="text-sm text-gray-500">
                     生成されたopening_message: {openingMessageCharCount}文字
                   </p>
@@ -943,8 +1110,8 @@ export default function Home() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-1">
                             <span
-                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white flex-shrink-0 ${
-                                item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
+                              className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 flex-shrink-0 ${
+                                item.templateType === "B" ? "bg-orange-500" : "bg-green-500"
                               }`}
                             >
                               {item.templateType}
