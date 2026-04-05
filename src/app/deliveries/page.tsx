@@ -69,7 +69,7 @@ function formatDateTime(isoString: string | null): string {
 // ダミーデータ生成用
 function generateDummyData(count: number): Delivery[] {
   const statuses = ["none", "approved", "on_hold", "cancelled"];
-  const templates = ["A", "B"];
+  const templates = ["A1", "A2", "A3", "B"];
   const timeSlots = ["00-05", "06-11", "12-17", "18-23"];
   const universities = ["東京大学", "京都大学", "早稲田大学", "慶應義塾大学", "明治大学", "青山学院大学", "立教大学", "中央大学", "法政大学", "日本大学"];
   const genders: ("male" | "female" | "other")[] = ["male", "female", "other"];
@@ -417,7 +417,10 @@ export default function DeliveriesPage() {
                 className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               >
                 <option value="">すべて</option>
-                <option value="A">A</option>
+                <option value="A">A（全て）</option>
+                <option value="A1">A1</option>
+                <option value="A2">A2</option>
+                <option value="A3">A3</option>
                 <option value="B">B</option>
               </select>
             </div>
@@ -570,8 +573,8 @@ export default function DeliveriesPage() {
                       <td className="px-3 py-2 text-center whitespace-nowrap">{getGenderLabel(item.gender)}</td>
                       <td className="px-3 py-2 text-center">
                         <span
-                          className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                            item.templateType === "A" ? "bg-green-500" : "bg-orange-500"
+                          className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 ${
+                            item.templateType === "B" ? "bg-orange-500" : "bg-green-500"
                           }`}
                         >
                           {item.templateType}

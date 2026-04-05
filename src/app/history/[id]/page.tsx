@@ -39,7 +39,7 @@ interface HistoryRecord {
   id: string;
   timestamp: string;
   createdAt: string;
-  pattern: "A" | "B";
+  pattern: "A" | "A1" | "A2" | "A3" | "B";
   pasteText: string;
   generatedMessage: string;
   prCharCount: number;
@@ -78,7 +78,7 @@ export default function HistoryDetailPage() {
   const [editDepartmentName, setEditDepartmentName] = useState("");
   const [editPrefecture, setEditPrefecture] = useState("");
   const [editGender, setEditGender] = useState("");
-  const [editPattern, setEditPattern] = useState<"A" | "B">("A");
+  const [editPattern, setEditPattern] = useState<"A" | "A1" | "A2" | "A3" | "B">("A1");
 
   // 編集用state（スカウト文）
   const [editScoutMessage, setEditScoutMessage] = useState("");
@@ -292,8 +292,8 @@ export default function HistoryDetailPage() {
             <div className="flex items-center justify-between pb-4 border-b border-gray-200 mb-4">
               <div className="flex items-center gap-3">
                 <span
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm ${
-                    editPattern === "A" ? "bg-green-500" : "bg-orange-500"
+                  className={`inline-flex h-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm px-3 ${
+                    editPattern === "B" ? "bg-orange-500" : "bg-green-500"
                   }`}
                 >
                   {editPattern}
@@ -425,13 +425,16 @@ export default function HistoryDetailPage() {
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">テンプレ</label>
                   <select
                     value={editPattern}
-                    onChange={(e) => setEditPattern(e.target.value as "A" | "B")}
+                    onChange={(e) => setEditPattern(e.target.value as "A" | "A1" | "A2" | "A3" | "B")}
                     className={`w-full px-3 py-2 border border-gray-300 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                      editPattern === "A" ? "text-green-600" : "text-orange-600"
+                      editPattern === "B" ? "text-orange-600" : "text-green-600"
                     }`}
                   >
-                    <option value="A">Aパターン</option>
+                    <option value="A1">A1パターン</option>
+                    <option value="A2">A2パターン</option>
+                    <option value="A3">A3パターン</option>
                     <option value="B">Bパターン</option>
+                    <option value="A">Aパターン（旧）</option>
                   </select>
                 </div>
                 

@@ -113,7 +113,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (templateType) {
-      where.templateType = templateType;
+      if (templateType === "A") {
+        // "A" で検索した場合は A1/A2/A3 すべてを含める
+        where.templateType = { in: ["A", "A1", "A2", "A3"] };
+      } else {
+        where.templateType = templateType;
+      }
     }
 
     if (studentId7) {

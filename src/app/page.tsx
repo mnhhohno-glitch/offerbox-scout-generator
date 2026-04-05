@@ -35,7 +35,7 @@ interface HistoryRecord {
   id: string;
   timestamp: string;
   createdAt: string; // ISO形式の日時（重複チェック用）
-  pattern: "A" | "B";
+  pattern: "A" | "A1" | "A2" | "A3" | "B";
   pasteText: string;
   generatedMessage: string;
   prCharCount: number;
@@ -73,8 +73,15 @@ function generateDedupeKey(record: HistoryRecord): string {
   return `${record.createdAt}-${textHash}`;
 }
 
-// Aパターン用あいさつ文を生成（titleはGemini生成）
-function buildGreetingA(title: string): string {
+// Aパターン用あいさつ文を生成（titleはGemini生成、サブパターンで分岐）
+function buildGreetingA(title: string, subPattern: "A1" | "A2" | "A3"): string {
+  if (subPattern === "A1") {
+    return `【${title}】
+
+初めまして。
+スタートライン新卒採用責任者の船戸です。
+今回は【一次面接確約】のご案内です！`;
+  }
   return `【${title}】
 
 初めまして。
@@ -144,44 +151,184 @@ const B_TEMPLATE_TEXT = `◆就活相談OK｜カジュアル面談
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
-// Aパターン用固定文（改行・記号・全角半角は1文字も変更しない）
-const FIXED_TEXT = `◆当社の事業は一言で言うと…
-「人と企業のつなぐHRソリューション企業」
+// A1パターン用固定文（①説明会誘致＋一次面接確約オファー）
+const FIXED_TEXT_A1 = `◆当社の事業は一言で言うと…
+「人と企業をつなぐHRソリューション企業」
 （架け橋となり、採用～定着～活躍を支援）
 
-この仕事の面白さは、人の強みを見つけ、
-個性を生かした、活躍の場をつくれること。
+この仕事の面白さは、強みや個性を見つけ、
+その人に合わせ活躍できる環境を整えていくこと。
+そうした関わりを通じて、人にも企業にも
+長く価値を届けられる仕事です。
 
-◆こんな気持ちが大切です。
----------------------------
-・成長をサポートしたい
-・「ありがとう」がやりがい
-・誰かの可能性を広げたい
----------------------------
+「誰かの成長に関わりたい」
+「人にも企業にも価値を届けたい」
+そんな想いがある方には、
+きっと面白い仕事です。
 
-1つでも当てはまったら
-当社の仕事は向いています！
+◆説明会では…
+・事業内容（他社との違い）
+・仕事内容ややりがい
+・入社後のキャリアイメージ
+を具体的にお伝えします。
 
-是非、カジュアル面談にて
-ざっくばらんにお話できれば嬉しいです！
+◆選考フロー
+※変更となる可能性があります。
+説明会
+↓
+一次面接【確約】
+↓
+仕事理解セミナー
+↓
+二次面接
+↓
+最終面接
+↓
+内定
 
-承諾＝応募ではありません
-就活相談だけでも歓迎です。
-※希望する方には会社説明会をご案内(WEB)
+また、オファーボックス経由で
+予約いただいた方には
+【仕事密着動画】もお送りしています◎
+※オファー承諾後、予約いただいた方が対象です
 
+ご承諾後、そのまま予約に進んでいただけます。
+なお、説明会日程が合わない場合は
+個別で日程調整も可能です。
 
-◆働きやすさも整っています
----------------------------
-・土日祝休み／年休120日以上
-・残業20時間以下／ＷＬＢ◎
-・ジョブローテーション制度有
-※数年で本社勤務など実績多数あり
----------------------------
+少しでもご興味があれば、
+ぜひご承諾ください！
 
 お話できるのを楽しみにしています！
 
 株式会社スタートライン
 新卒採用責任者　船戸`;
+
+// A2パターン用固定文（②説明会誘致オファー）
+const FIXED_TEXT_A2 = `◆当社の事業は一言で言うと…
+「人と企業をつなぐHRソリューション企業」
+（架け橋となり、採用～定着～活躍を支援）
+
+この仕事の面白さは、強みや個性を見つけ、
+その人に合わせ活躍できる環境を整えていくこと。
+そうした関わりを通じて、人にも企業にも
+長く価値を届けられる仕事です。
+
+「誰かの成長に関わりたい」
+「人にも企業にも価値を届けたい」
+そんな想いがある方には、
+きっと面白い仕事です。
+
+◆説明会では…
+・事業内容（他社との違い）
+・仕事内容ややりがい
+・入社後のキャリアイメージ
+を具体的にお伝えします。
+
+◆選考フロー
+※変更となる可能性があります。
+説明会
+↓
+一次面接
+↓
+仕事理解セミナー
+↓
+二次面接
+↓
+最終面接
+↓
+内定
+
+また、オファーボックス経由で
+予約いただいた方には
+【仕事密着動画】もお送りしています◎
+※オファー承諾後、予約いただいた方が対象です
+
+ご承諾後、そのまま予約に進んでいただけます。
+なお、説明会日程が合わない場合は
+個別で日程調整も可能です。
+
+少しでもご興味があれば、
+ぜひご承諾ください！
+
+お話できるのを楽しみにしています！
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
+// A3パターン用固定文（③カジュアル面談誘致オファー）
+const FIXED_TEXT_A3 = `今回は通常の説明会ではなく、
+個別にお話しできる
+【カジュアル面談】のご案内です。
+※承諾＝応募ではありません
+
+就活のこの時期、
+「何が向いているのか分からない」
+「納得感をもって就活を進めたい」
+と感じることはありませんか？
+
+少しでも当てはまれば
+【15分のカジュアル面談（WEB）】で、
+気軽にお話できれば嬉しいです。
+
+◆当社の事業は一言で言うと…
+「人と企業をつなぐHRソリューション企業」
+（架け橋となり、採用～定着～活躍を支援）
+
+この仕事の面白さは、強みや個性を見つけ、
+その人に合わせて活躍できる環境を整えていくこと。
+そうした関わりを通じて、人にも企業にも
+長く価値を届けられる仕事です。
+
+募集職種は1つだけではなく、
+ご本人の希望や適性もふまえながら
+どんな仕事で強みを活かせそうかを一緒に考えていきます。
+※サポート職で活躍している先輩社員も多くいます！
+
+◆カジュアル面談
+・あなたの強みがどう活かせそうか
+・業界の特徴や事業内容
+・入社3年目の先輩社員のキャリア
+を具体的にお伝えします。
+
+◆選考フロー
+※変更となる可能性があります。
+カジュアル面談
+↓
+一次面接
+↓
+仕事理解セミナー
+↓
+二次面接
+↓
+最終面接
+↓
+内定
+
+また、オファーボックス経由で
+予約いただいた方には
+【仕事密着動画】もお送りしています◎
+※オファー承諾後、予約いただいた方が対象です
+
+ご承諾後、そのまま予約に進んでいただけます。
+なお、面談日程が合わない場合は
+個別で日程調整することも可能です。
+
+少しでもご興味があれば
+ぜひご承諾ください！
+
+お話できるのを楽しみにしています！
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
+// サブパターンに応じた固定テキストを返す
+function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
+  switch (subPattern) {
+    case "A1": return FIXED_TEXT_A1;
+    case "A2": return FIXED_TEXT_A2;
+    case "A3": return FIXED_TEXT_A3;
+  }
+}
 
 // 自己PR候補を抽出
 function extractPrCandidate(text: string): string {
@@ -274,6 +421,14 @@ function extractPrCandidate(text: string): string {
 function judgePattern(prCandidate: string): "A" | "B" {
   const charCount = Array.from(prCandidate).length;
   return charCount >= 200 ? "A" : "B";
+}
+
+// Aパターンのサブパターン振り分け（ランダム1/3ずつ）
+function judgeASubPattern(): "A1" | "A2" | "A3" {
+  const rand = Math.random();
+  if (rand < 1/3) return "A1";
+  if (rand < 2/3) return "A2";
+  return "A3";
 }
 
 // 半角スペースを除去
@@ -423,7 +578,7 @@ function formatForPC(text: string): string {
 
 export default function Home() {
   const [pasteText, setPasteText] = useState("");
-  const [pattern, setPattern] = useState<"A" | "B" | null>(null);
+  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
   const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
@@ -651,15 +806,19 @@ export default function Home() {
       
       const judgedPattern = judgePattern(prCandidate);
       console.log("判定結果:", judgedPattern, "(200文字以上でA)");
-      setPattern(judgedPattern);
+
+      // Aパターンの場合はサブパターンを決定
+      const finalPattern = judgedPattern === "A" ? judgeASubPattern() : "B" as const;
+      console.log("最終パターン:", finalPattern);
+      setPattern(finalPattern);
 
       let greeting: string;
       let formattedOpening: string;
       const geminiOutputs: typeof currentGeminiOutputs = {};
 
-      if (judgedPattern === "A") {
-        // Aパターン: Geminiでtitleとopening_messageを生成
-        console.log("=== Aパターン処理開始 ===");
+      if (finalPattern !== "B") {
+        // A1/A2/A3パターン: Geminiでtitleとopening_messageを生成
+        console.log(`=== ${finalPattern}パターン処理開始 ===`);
         const titleResponse = await fetch("/api/gemini", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -679,7 +838,7 @@ export default function Home() {
         }
 
         geminiOutputs.title = title;
-        greeting = buildGreetingA(title);
+        greeting = buildGreetingA(title, finalPattern);
 
         // opening_message生成（Aパターンのみ）
         const openingResponse = await fetch("/api/gemini", {
@@ -711,7 +870,8 @@ export default function Home() {
         );
 
         // greeting + opening_message + 固定文 を結合
-        const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${FIXED_TEXT}`;
+        const fixedText = getFixedTextForPattern(finalPattern);
+        const finalMessage = `${greeting}\n\n${formattedOpening}\n\n${fixedText}`;
         setGeneratedMessage(finalMessage);
       } else {
         // Bパターン: 学部名から1文だけGemini生成し、テンプレートに差し込む
@@ -930,8 +1090,8 @@ export default function Home() {
           <div className="mb-6 rounded-lg bg-white p-4 shadow">
             <div className="flex items-center gap-4">
               <span
-                className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-lg font-bold text-white ${
-                  pattern === "A" ? "bg-green-500" : "bg-orange-500"
+                className={`inline-flex h-10 items-center justify-center rounded-full text-lg font-bold text-white px-3 ${
+                  pattern === "B" ? "bg-orange-500" : "bg-green-500"
                 }`}
               >
                 {pattern}
@@ -939,9 +1099,9 @@ export default function Home() {
               <div>
                 <p className="text-sm text-gray-600">
                   自己PR候補: {prCharCount}文字
-                  {pattern === "A" ? "（200文字以上）" : "（200文字未満）"}
+                  {pattern !== "B" ? "（200文字以上）" : "（200文字未満）"}
                 </p>
-                {pattern === "A" && openingMessageCharCount !== null && (
+                {pattern !== "B" && openingMessageCharCount !== null && (
                   <p className="text-sm text-gray-500">
                     生成されたopening_message: {openingMessageCharCount}文字
                   </p>
@@ -1199,8 +1359,8 @@ export default function Home() {
                           <div className="flex items-center gap-3 mb-1">
                             {/* パターン表示 */}
                             <span
-                              className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white ${
-                                record.pattern === "A" ? "bg-green-500" : "bg-orange-500"
+                              className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 ${
+                                record.pattern === "B" ? "bg-orange-500" : "bg-green-500"
                               }`}
                             >
                               {record.pattern}

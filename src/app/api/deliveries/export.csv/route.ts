@@ -87,7 +87,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (templateType) {
-      where.templateType = templateType;
+      if (templateType === "A") {
+        where.templateType = { in: ["A", "A1", "A2", "A3"] };
+      } else {
+        where.templateType = templateType;
+      }
     }
 
     if (studentId7) {
