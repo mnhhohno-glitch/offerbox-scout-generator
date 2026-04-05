@@ -145,12 +145,13 @@ const B_TEMPLATE_TEXT = `◆就活相談OK｜カジュアル面談
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
-// A1パターン用固定文（①説明会誘致＋一次面接確約オファー）
-const FIXED_TEXT_A1 = `はじめまして。
+// Aパターン共通グリーティング
+const GREETING = `はじめまして。
 株式会社スタートライン
-新卒採用責任者の船戸です。
+新卒採用責任者の船戸です。`;
 
-今回は、
+// A1パターン用固定文（①説明会誘致＋一次面接確約オファー）※グリーティング除外
+const FIXED_TEXT_A1 = `今回は、
 【説明会参加後、一次面接確約】で
 ご案内したくご連絡しました！
 
@@ -215,12 +216,8 @@ HRソリューション企業です。
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
-// A2パターン用固定文（②説明会誘致オファー）
-const FIXED_TEXT_A2 = `はじめまして。
-株式会社スタートライン
-新卒採用責任者の船戸です。
-
-今回ご連絡したのは、
+// A2パターン用固定文（②説明会誘致オファー）※グリーティング除外
+const FIXED_TEXT_A2 = `今回ご連絡したのは、
 まずは選考前に
 当社の仕事や事業について
 知っていただきたいと考えたためです！
@@ -285,12 +282,8 @@ HRソリューション企業です。
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
-// A3パターン用固定文（③カジュアル面談誘致オファー）
-const FIXED_TEXT_A3 = `はじめまして。
-株式会社スタートライン
-新卒採用責任者の船戸です。
-
-今回は通常の説明会ではなく、
+// A3パターン用固定文（③カジュアル面談誘致オファー）※グリーティング除外
+const FIXED_TEXT_A3 = `今回は通常の説明会ではなく、
 【15分のカジュアル面談】を
 個別でご案内しています！
 ※承諾＝応募ではありません
@@ -883,9 +876,9 @@ export default function Home() {
           Array.from(formattedOpening.replace(/\n/g, "")).length
         );
 
-        // タイトル行 + 個別訴求 + 固定文 を結合
+        // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
         const fixedText = getFixedTextForPattern(finalPattern);
-        const finalMessage = `${titleLine}\n\n${formattedOpening}\n\n${fixedText}`;
+        const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
         setGeneratedMessage(finalMessage);
       } else {
         // Bパターン: 学部名から1文だけGemini生成し、テンプレートに差し込む
