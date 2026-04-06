@@ -678,126 +678,78 @@ export default function Home() {
     setCurrentGeminiOutputs({});
 
     try {
-      // 自己PR候補を抽出してA/B判定
+      // 自己PR候補を抽出（文字数表示用）
       const prCandidate = extractPrCandidate(pasteText);
       const charCount = Array.from(prCandidate).length;
       setPrCharCount(charCount);
 
-      console.log("=== A/B判定デバッグ ===");
+      console.log("=== パターン振り分け ===");
       console.log("貼り付けテキスト長:", Array.from(pasteText).length, "文字");
-      console.log("抽出された自己PR候補:", prCandidate.slice(0, 100) + "...");
       console.log("自己PR候補の文字数:", charCount);
-      
-      const judgedPattern = judgePattern(prCandidate);
-      console.log("判定結果:", judgedPattern, "(200文字以上でA)");
 
-      // Aパターンの場合はサブパターンを決定
-      const finalPattern = judgedPattern === "A" ? judgeASubPattern() : "B" as const;
+      // 全学生A1/A2/A3ランダム振り分け（Bパターン廃止）
+      const finalPattern = judgeASubPattern();
       console.log("最終パターン:", finalPattern);
       setPattern(finalPattern);
 
-      let formattedOpening: string;
       const geminiOutputs: typeof currentGeminiOutputs = {};
 
-      if (finalPattern !== "B") {
-        // A1/A2/A3パターン: Geminiでtitleとopening_messageを生成
-        console.log(`=== ${finalPattern}パターン処理開始 ===`);
-        const titleResponse = await fetch("/api/gemini", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "title", pasteText }),
-        });
+      // A1/A2/A3パターン: Geminiでtitleとopening_messageを生成
+      console.log(`=== ${finalPattern}パターン処理開始 ===`);
+      const titleResponse = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "title", pasteText }),
+      });
 
-        if (!titleResponse.ok) {
-          const errorData = await titleResponse.json();
-          throw new Error(errorData.error || "title生成に失敗しました");
-        }
-
-        const titleData = await titleResponse.json();
-        const title = removeAsciiSpaces(titleData.title || "");
-
-        if (!title) {
-          throw new Error("titleが取得できませんでした");
-        }
-
-        geminiOutputs.title = title;
-        const titleLine = buildTitleLine(title, finalPattern);
-
-        // opening_message生成（Aパターンのみ）
-        const openingResponse = await fetch("/api/gemini", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "opening", pasteText }),
-        });
-
-        if (!openingResponse.ok) {
-          const errorData = await openingResponse.json();
-          throw new Error(errorData.error || "opening_message生成に失敗しました");
-        }
-
-        const openingData = await openingResponse.json();
-        const openingMessageRaw = openingData.opening_message || "";
-
-        if (!openingMessageRaw) {
-          throw new Error("opening_messageが取得できませんでした");
-        }
-
-        geminiOutputs.openingMessage = openingMessageRaw;
-
-        // 整形を適用
-        formattedOpening = formatOpeningMessage(openingMessageRaw);
-        // 最終的に「。」単位で改行を正規化
-        formattedOpening = normalizeOpeningByPeriod(formattedOpening);
-        setOpeningMessageCharCount(
-          Array.from(formattedOpening.replace(/\n/g, "")).length
-        );
-
-        // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
-        const fixedText = getFixedTextForPattern(finalPattern);
-        const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
-        setGeneratedMessage(finalMessage);
-      } else {
-        // Bパターン: 学部名から1文だけGemini生成し、テンプレートに差し込む
-        const facultyName = extractFacultyName(pasteText);
-        setExtractedFaculty(facultyName || null);
-        console.log("Bパターン: 抽出された学部名 =", facultyName);
-        
-        let profileLine = "プロフィールを拝見し、ご連絡しました。"; // デフォルト
-        
-        if (facultyName) {
-          // 学部名があればGeminiで1文生成
-          try {
-            const res = await fetch("/api/gemini", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ mode: "b_profile_line", facultyName }),
-            });
-            
-            if (res.ok) {
-              const data = await res.json();
-              console.log("Gemini B応答:", data);
-              const generatedLine = (data.profile_line ?? "").replace(/ /g, "").trim();
-              if (generatedLine) {
-                profileLine = generatedLine;
-              }
-            } else {
-              console.error("Gemini B API error:", res.status);
-            }
-          } catch (e) {
-            console.error("Gemini B fetch error:", e);
-          }
-        } else {
-          console.log("学部名が抽出できなかったため、デフォルト文を使用");
-        }
-        
-        geminiOutputs.profileLine = profileLine;
-        console.log("最終profileLine:", profileLine);
-        
-        // テンプレートの{{B_PROFILE_LINE}}を差し替え
-        const finalB = B_TEMPLATE_TEXT.replace("{{B_PROFILE_LINE}}", profileLine);
-        setOpeningMessageCharCount(null);
-        setGeneratedMessage(finalB);
+      if (!titleResponse.ok) {
+        const errorData = await titleResponse.json();
+        throw new Error(errorData.error || "title生成に失敗しました");
       }
+
+      const titleData = await titleResponse.json();
+      const title = removeAsciiSpaces(titleData.title || "");
+
+      if (!title) {
+        throw new Error("titleが取得できませんでした");
+      }
+
+      geminiOutputs.title = title;
+      const titleLine = buildTitleLine(title, finalPattern);
+
+      // opening_message生成
+      const openingResponse = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "opening", pasteText }),
+      });
+
+      if (!openingResponse.ok) {
+        const errorData = await openingResponse.json();
+        throw new Error(errorData.error || "opening_message生成に失敗しました");
+      }
+
+      const openingData = await openingResponse.json();
+      const openingMessageRaw = openingData.opening_message || "";
+
+      if (!openingMessageRaw) {
+        throw new Error("opening_messageが取得できませんでした");
+      }
+
+      geminiOutputs.openingMessage = openingMessageRaw;
+
+      // 整形を適用
+      let formattedOpening = formatOpeningMessage(openingMessageRaw);
+      // 最終的に「。」単位で改行を正規化
+      formattedOpening = normalizeOpeningByPeriod(formattedOpening);
+      setOpeningMessageCharCount(
+        Array.from(formattedOpening.replace(/\n/g, "")).length
+      );
+
+      // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
+      const fixedText = getFixedTextForPattern(finalPattern);
+      const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
+      setGeneratedMessage(finalMessage);
 
       // Gemini出力を保存（履歴保存時に使用）
       setCurrentGeminiOutputs(geminiOutputs);
@@ -943,43 +895,23 @@ export default function Home() {
           </div>
         )}
 
-        {/* A/B判定結果 */}
+        {/* パターン判定結果 */}
         {pattern && (
           <div className="mb-6 rounded-lg bg-white p-4 shadow">
             <div className="flex items-center gap-4">
               <span
-                className={`inline-flex h-10 items-center justify-center rounded-full text-lg font-bold text-white px-3 ${
-                  pattern === "B" ? "bg-orange-500" : "bg-green-500"
-                }`}
+                className="inline-flex h-10 items-center justify-center rounded-full text-lg font-bold text-white px-3 bg-green-500"
               >
                 {pattern}
               </span>
               <div>
                 <p className="text-sm text-gray-600">
                   自己PR候補: {prCharCount}文字
-                  {pattern !== "B" ? "（200文字以上）" : "（200文字未満）"}
                 </p>
-                {pattern !== "B" && openingMessageCharCount !== null && (
+                {openingMessageCharCount !== null && (
                   <p className="text-sm text-gray-500">
                     生成されたopening_message: {openingMessageCharCount}文字
                   </p>
-                )}
-                {pattern === "B" && (
-                  <>
-                    <p className="text-sm text-orange-600">
-                      1文のみAI生成（固定文ベース）
-                    </p>
-                    {extractedFaculty && (
-                      <p className="text-sm text-gray-500">
-                        抽出された学部: {extractedFaculty}
-                      </p>
-                    )}
-                    {!extractedFaculty && (
-                      <p className="text-sm text-gray-400">
-                        学部名が抽出できませんでした
-                      </p>
-                    )}
-                  </>
                 )}
               </div>
             </div>
