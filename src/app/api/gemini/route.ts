@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
 
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const JSON_INSTRUCTION = `必ずJSON形式のみで返答してください。マークダウンのコードブロック（\`\`\`json）は使用しないでください。`;
 
 // 共通のsystemInstruction
 const SYSTEM_INSTRUCTION_BASE = `必ず日本語で出力してください。
@@ -16,7 +16,8 @@ const SYSTEM_INSTRUCTION_BASE = `必ず日本語で出力してください。
 
 // title生成用のsystemInstruction
 const SYSTEM_INSTRUCTION_TITLE = `あなたは新卒スカウト文の見出しを作るライターです。
-${SYSTEM_INSTRUCTION_BASE}`;
+${SYSTEM_INSTRUCTION_BASE}
+${JSON_INSTRUCTION}`;
 
 // opening_message生成用のsystemInstruction
 const SYSTEM_INSTRUCTION_OPENING = `あなたは新卒スカウト文の「個別訴求パート」だけを作るライターです。
@@ -29,7 +30,8 @@ ${SYSTEM_INSTRUCTION_BASE}
 
 【重要】
 あなたが生成するのは「個別訴求パート（opening_message）」のみです。
-この後ろに続く会社紹介文などの固定文はアプリ側で別途結合します。`;
+この後ろに続く会社紹介文などの固定文はアプリ側で別途結合します。
+${JSON_INSTRUCTION}`;
 
 // Bパターン用1文生成のsystemInstruction
 const SYSTEM_INSTRUCTION_B_PROFILE = `あなたは新卒スカウト文作成のプロです。
@@ -40,7 +42,8 @@ const SYSTEM_INSTRUCTION_B_PROFILE = `あなたは新卒スカウト文作成の
 「感銘しました」「非常に魅力的でした」「素晴らしいと思いました」は使用不可です。
 「自己PRを拝見し」「ご経験を拝見し」は使用不可です。
 過度な称賛（「素晴らしい」「圧倒的」「卓越した」など）は禁止です。
-出力は必ずJSONのみで、指定キー以外は出力しません。`;
+出力は必ずJSONのみで、指定キー以外は出力しません。
+${JSON_INSTRUCTION}`;
 
 // Bパターン用1文生成のプロンプト
 const B_PROFILE_LINE_TEMPLATE = `以下のスカウト文の「プロフィールを拝見し〜」の1文を、学部名に合わせて具体化してください。
@@ -223,16 +226,23 @@ function extractProfileLine(text: string): string {
   return cleaned.slice(0, 150);
 }
 
-async function fetchWithRetry(
-  fetchFn: () => Promise<Response>,
+async function callWithRetry(
+  callFn: () => Promise<Anthropic.Message>,
   maxRetries = 3
-): Promise<Response> {
+): Promise<Anthropic.Message> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const response = await fetchFn();
-    if (response.status !== 429) return response;
-    if (attempt === maxRetries) return response;
-    const waitMs = 3000 * Math.pow(2, attempt);
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    try {
+      return await callFn();
+    } catch (error: unknown) {
+      const status =
+        error instanceof Anthropic.APIError ? error.status : undefined;
+      if ((status === 429 || status === 529) && attempt < maxRetries) {
+        const waitMs = 3000 * Math.pow(2, attempt);
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        continue;
+      }
+      throw error;
+    }
   }
   throw new Error("Unexpected retry loop exit");
 }
@@ -268,100 +278,49 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === "ここにあなたのAPIキー") {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
       return NextResponse.json(
-        { error: "GEMINI_API_KEY is not configured" },
+        { error: "ANTHROPIC_API_KEY is not configured" },
         { status: 500 }
       );
     }
 
+    const client = new Anthropic({ apiKey });
+
     let systemInstruction: string;
     let userPrompt: string;
-    let responseSchema: object;
 
     if (mode === "title") {
       systemInstruction = SYSTEM_INSTRUCTION_TITLE;
       userPrompt = TITLE_INSTRUCTION_TEMPLATE.replace("{pasteText}", pasteText);
-      responseSchema = {
-        type: "object",
-        properties: { title: { type: "string" } },
-        required: ["title"],
-      };
     } else if (mode === "opening") {
       systemInstruction = SYSTEM_INSTRUCTION_OPENING;
       userPrompt = OPENING_INSTRUCTION_TEMPLATE.replace("{pasteText}", pasteText);
-      responseSchema = {
-        type: "object",
-        properties: { opening_message: { type: "string" } },
-        required: ["opening_message"],
-      };
     } else {
       // b_profile_line
       systemInstruction = SYSTEM_INSTRUCTION_B_PROFILE;
       userPrompt = B_PROFILE_LINE_TEMPLATE.replace("{facultyName}", facultyName);
-      responseSchema = {
-        type: "object",
-        properties: { profile_line: { type: "string" } },
-        required: ["profile_line"],
-      };
     }
 
-    const requestBody = {
-      system_instruction: {
-        parts: [{ text: systemInstruction }],
-      },
-      contents: [
-        {
-          parts: [{ text: userPrompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.4,
-        maxOutputTokens: 256,
-        responseMimeType: "application/json",
-        responseSchema,
-      },
-    };
-
-    const response = await fetchWithRetry(() =>
-      fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
+    const message = await callWithRetry(() =>
+      client.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: systemInstruction,
+        messages: [{ role: "user", content: userPrompt }],
       })
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", errorText);
-      return NextResponse.json(
-        { error: `Gemini API error: ${response.status}` },
-        { status: response.status }
-      );
-    }
+    const rawText =
+      message.content[0].type === "text" ? message.content[0].text : "";
 
-    const data = await response.json();
-
-    const candidates = data.candidates;
-    if (!candidates || candidates.length === 0) {
+    if (!rawText) {
       return NextResponse.json(
-        { error: "No response from Gemini" },
+        { error: "No response from Claude" },
         { status: 500 }
       );
     }
-
-    const content = candidates[0].content;
-    if (!content || !content.parts || content.parts.length === 0) {
-      return NextResponse.json(
-        { error: "Invalid response structure from Gemini" },
-        { status: 500 }
-      );
-    }
-
-    const rawText = content.parts[0].text;
 
     if (mode === "title") {
       const title = extractTitle(rawText);
@@ -377,7 +336,6 @@ export async function POST(request: NextRequest) {
     } else {
       // b_profile_line
       const profileLine = extractProfileLine(rawText);
-      // 半角スペース除去
       const cleanedLine = profileLine.replace(/ /g, "").trim();
       return NextResponse.json({ profile_line: cleanedLine });
     }
