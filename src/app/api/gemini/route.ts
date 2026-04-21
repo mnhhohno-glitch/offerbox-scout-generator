@@ -223,6 +223,20 @@ function extractProfileLine(text: string): string {
   return cleaned.slice(0, 150);
 }
 
+async function fetchWithRetry(
+  fetchFn: () => Promise<Response>,
+  maxRetries = 3
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetchFn();
+    if (response.status !== 429) return response;
+    if (attempt === maxRetries) return response;
+    const waitMs = 3000 * Math.pow(2, attempt);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  throw new Error("Unexpected retry loop exit");
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -310,13 +324,15 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    });
+    const response = await fetchWithRetry(() =>
+      fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      })
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
