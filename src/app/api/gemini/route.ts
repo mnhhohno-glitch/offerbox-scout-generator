@@ -323,11 +323,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (mode === "title") {
-      const title = extractTitle(rawText);
+      const title = extractTitle(rawText).replace(/\\n/g, "\n");
       const finalTitle = Array.from(title).slice(0, 30).join("");
       return NextResponse.json({ title: finalTitle });
     } else if (mode === "opening") {
-      const openingMessage = extractOpeningMessage(rawText);
+      const openingMessage = extractOpeningMessage(rawText).replace(/\\n/g, "\n");
       const finalMessage =
         Array.from(openingMessage).length > 300
           ? Array.from(openingMessage).slice(0, 300).join("")
@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ opening_message: finalMessage });
     } else {
       // b_profile_line
-      const profileLine = extractProfileLine(rawText);
+      const profileLine = extractProfileLine(rawText).replace(/\\n/g, "\n");
       const cleanedLine = profileLine.replace(/ /g, "").trim();
       return NextResponse.json({ profile_line: cleanedLine });
     }
