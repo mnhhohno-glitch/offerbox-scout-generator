@@ -773,7 +773,7 @@ export default function Home() {
     if (!DB_ENABLED) return;
     setHistoryLoading(true);
     try {
-      const res = await fetch("/api/deliveries?page=1&pageSize=20");
+      const res = await fetch(`/api/deliveries?page=1&pageSize=20&cohortYear=${cohortYear}`);
       if (!res.ok) return;
       const data: DeliveriesResponse = await res.json();
       setHistoryItems(data.items);
@@ -783,7 +783,7 @@ export default function Home() {
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [cohortYear]);
 
   useEffect(() => {
     fetchHistory();
