@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
     const lastLoginFrom = searchParams.get("lastLoginFrom");
     const lastLoginTo = searchParams.get("lastLoginTo");
     const offerStatus = searchParams.get("offerStatus");
+    const cohortYear = searchParams.get("cohortYear");
 
     // WHERE条件を構築
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,6 +126,10 @@ export async function GET(request: NextRequest) {
       where.offerStatus = offerStatus;
     }
 
+    if (cohortYear === "27" || cohortYear === "28") {
+      where.cohortYear = cohortYear;
+    }
+
     // 件数チェック
     const total = await prisma.delivery.count({ where });
 
@@ -148,6 +153,7 @@ export async function GET(request: NextRequest) {
       "配信日時(JST)",
       "配信日",
       "時間帯",
+      "卒年",
       "テンプレ",
       "利用者番号",
       "大学名",
@@ -182,6 +188,7 @@ export async function GET(request: NextRequest) {
         formatJSTDateTimeForCSV(d.sentAt),
         d.sendDate.toISOString().slice(0, 10),
         d.timeSlot,
+        d.cohortYear ? `${d.cohortYear}卒` : "",
         d.templateType,
         d.studentId7,
         d.universityName,

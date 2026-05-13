@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
       sourceText,
       studentId7: providedStudentId7,
       lastLoginAt: providedLastLoginAt,
+      cohortYear: providedCohortYear,
     } = body;
 
     // 必須チェック
@@ -23,6 +24,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // cohortYear バリデーション（未指定なら "27"）
+    const cohortYear =
+      providedCohortYear === "27" || providedCohortYear === "28"
+        ? providedCohortYear
+        : "27";
 
     const sentAtDate = new Date(sentAt);
     if (isNaN(sentAtDate.getTime())) {
@@ -66,6 +73,7 @@ export async function POST(request: NextRequest) {
         gender: gender || null,
         lastLoginAt: lastLoginAt || null,
         offerStatus: "none",
+        cohortYear,
       },
     });
 
@@ -97,6 +105,7 @@ export async function GET(request: NextRequest) {
     const lastLoginFrom = searchParams.get("lastLoginFrom");
     const lastLoginTo = searchParams.get("lastLoginTo");
     const offerStatus = searchParams.get("offerStatus");
+    const cohortYear = searchParams.get("cohortYear");
 
     // WHERE条件を構築
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,6 +142,10 @@ export async function GET(request: NextRequest) {
 
     if (offerStatus) {
       where.offerStatus = offerStatus;
+    }
+
+    if (cohortYear === "27" || cohortYear === "28") {
+      where.cohortYear = cohortYear;
     }
 
     // 総件数

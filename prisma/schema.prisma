@@ -26,6 +26,7 @@ model Delivery {
   onHoldAt      DateTime? @map("on_hold_at") @db.Timestamptz
   cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz
   notes         String?
+  cohortYear    String    @default("27") @map("cohort_year")
 
   @@index([sentAt], name: "idx_deliveries_sent_at")
   @@index([sendDate], name: "idx_deliveries_send_date")
@@ -34,5 +35,6 @@ model Delivery {
   @@index([studentId7], name: "idx_deliveries_student_id7")
   @@index([lastLoginAt], name: "idx_deliveries_last_login_at")
   @@index([offerStatus], name: "idx_deliveries_offer_status")
+  @@index([cohortYear], name: "idx_deliveries_cohort_year")
   @@map("deliveries")
 }

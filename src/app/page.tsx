@@ -69,6 +69,17 @@ function useIsStaging(): boolean {
   return isStaging;
 }
 
+// 卒年関連の定数とユーティリティ
+const COHORT_STORAGE_KEY = "selected_cohort_year";
+const DEFAULT_COHORT_YEAR: CohortYear = "28";
+type CohortYear = "27" | "28";
+
+function getStoredCohortYear(): CohortYear {
+  if (typeof window === "undefined") return DEFAULT_COHORT_YEAR;
+  const v = window.localStorage.getItem(COHORT_STORAGE_KEY);
+  return v === "27" || v === "28" ? v : DEFAULT_COHORT_YEAR;
+}
+
 // Aパターン用タイトル行を生成（titleはGemini生成の訴求部分）
 function buildTitleLine(title: string, subPattern: "A1" | "A2" | "A3"): string {
   switch (subPattern) {
@@ -76,6 +87,11 @@ function buildTitleLine(title: string, subPattern: "A1" | "A2" | "A3"): string {
     case "A2": return `【${title}】`;
     case "A3": return `【${title}】`;
   }
+}
+
+// 28卒用タイトル行（【〇〇】形式、A2/A3と同じ）
+function build28TitleLine(title: string): string {
+  return `【${title}】`;
 }
 
 // Bパターン用テンプレート（{{B_PROFILE_LINE}}を1文だけGemini生成で差し替え）
@@ -350,6 +366,144 @@ HRソリューション企業です。
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
+// 28Aパターン用固定文（28卒向け）※グリーティング除外
+const FIXED_TEXT_28A = `■スタートラインについて
+私たちは、
+企業と働く人の間にある
+様々な課題を解決し、
+誰もが自分らしく活躍できる
+環境づくりを支援する企業です。
+
+人材×福祉×ビジネスの領域で、
+「人が活躍できる環境をどうつくるか」を考えています。
+
+福祉と聞くと「支える仕事」というイメージを持つ方も多いかもしれませんが、私たちは企業や社会の仕組みの中で、一人ひとりが活躍できる環境をつくることに向き合っています。
+
+■ワークで体験できること
+今回のワークでは、企業が抱える
+「採用・定着・活躍」の課題と、
+働く人が力を発揮するために
+必要な環境づくりについて考えていただきます。
+
+実際のケースをもとに、
+どのように課題を整理し、
+どのような支援や提案をするかまでを体験できる内容です。
+
+当社の仕事の面白さや難しさ、
+大切にしている考え方まで体験を通じて知っていただけます。
+
+「課題の本質を考えてみたい」
+「未来を広げる仕事が気になる」
+「社会を支える仕事を知りたい」
+
+このような気持ちが
+少しでもあれば、
+きっと新しい発見がある
+時間になると思います。
+
+＊WEB実施/2h
+＊人事からFBあり
+＊希望者には早期選考をご案内
+秋頃から説明会や
+カジュアル面談を開始予定です★
+
+少人数で
+意見交換しながら進めるため
+初めての方でも
+参加しやすい雰囲気です。
+
+承諾＝応募ではありませんので、
+業界や職種がまだ決まっていない方でも大丈夫です。
+まずは情報収集の機会として、
+お気軽にご参加ください。
+
+お会いできることを
+楽しみにしています。
+
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
+// 28Bパターン用固定文（28卒向け｜会社魅力・募集職種付き）※グリーティング除外
+const FIXED_TEXT_28B = `◆当社の魅力
+・多様な働き方を創造する会社
+・想いを大切にできる仕事
+・チームワークを大切にする社風
+・シェアトップクラスの実績
+
+◆募集職種
+・営業職
+・コンサルティング職
+・マーケティング職
+・バックオフィス職
+・研究職　　など
+希望と適性に合わせて
+配属・職種を決定します！
+【働き方】
+・土日祝休
+・平均残業20時間未満
+
+■スタートラインについて
+私たちは、
+企業と働く人の間にある
+様々な課題を解決し、
+誰もが自分らしく活躍できる
+環境づくりを支援する企業です。
+
+人材×福祉×ビジネスの領域で、
+「人が活躍できる環境をどうつくるか」を考えています。
+
+福祉と聞くと「支える仕事」というイメージを持つ方も多いかもしれませんが、私たちは企業や社会の仕組みの中で、一人ひとりが活躍できる環境をつくることに向き合っています。
+
+■ワークで体験できること
+今回のワークでは、企業が抱える
+「採用・定着・活躍」の課題と、
+働く人が力を発揮するために
+必要な環境づくりについて考えていただきます。
+
+実際のケースをもとに、
+どのように課題を整理し、
+どのような支援や提案をするかまでを体験できる内容です。
+
+当社の仕事の面白さや難しさ、
+大切にしている考え方まで体験を通じて知っていただけます。
+
+「課題の本質を考えてみたい」
+「未来を広げる仕事が気になる」
+「社会を支える仕事を知りたい」
+
+このような気持ちが
+少しでもあれば、
+きっと新しい発見がある
+時間になると思います。
+
+＊WEB実施/2h
+＊人事からFBあり
+＊希望者には早期選考をご案内
+秋頃から説明会や
+カジュアル面談を開始予定です★
+
+少人数で
+意見交換しながら進めるため
+初めての方でも
+参加しやすい雰囲気です。
+
+承諾＝応募ではありませんので、
+業界や職種がまだ決まっていない方でも大丈夫です。
+まずは情報収集の機会として、
+お気軽にご参加ください。
+もし少しでも
+共感いただけましたら
+是非オファー承諾を
+お願いいたします。
+
+お会いできることを
+楽しみにしています。
+
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
 // サブパターンに応じた固定テキストを返す
 function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
   switch (subPattern) {
@@ -357,6 +511,19 @@ function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
     case "A2": return FIXED_TEXT_A2;
     case "A3": return FIXED_TEXT_A3;
   }
+}
+
+// 28卒サブパターンに応じた固定テキストを返す
+function getFixedTextFor28Pattern(subPattern: "28A" | "28B"): string {
+  switch (subPattern) {
+    case "28A": return FIXED_TEXT_28A;
+    case "28B": return FIXED_TEXT_28B;
+  }
+}
+
+// 28卒パターンのランダム振り分け（50/50）
+function judge28SubPattern(): "28A" | "28B" {
+  return Math.random() < 0.5 ? "28A" : "28B";
 }
 
 // 自己PR候補を抽出
@@ -582,7 +749,8 @@ function formatForPC(text: string): string {
 export default function Home() {
   const isStaging = useIsStaging();
   const [pasteText, setPasteText] = useState("");
-  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | null>(null);
+  const [cohortYear, setCohortYear] = useState<CohortYear>(DEFAULT_COHORT_YEAR);
+  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
   const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
@@ -620,6 +788,22 @@ export default function Home() {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+
+  // 卒年をlocalStorageから復元（初期値も保存）
+  useEffect(() => {
+    const stored = getStoredCohortYear();
+    setCohortYear(stored);
+    if (typeof window !== "undefined" && !window.localStorage.getItem(COHORT_STORAGE_KEY)) {
+      window.localStorage.setItem(COHORT_STORAGE_KEY, stored);
+    }
+  }, []);
+
+  const handleCohortYearChange = (next: CohortYear) => {
+    setCohortYear(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(COHORT_STORAGE_KEY, next);
+    }
+  };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     const normalized = { offered: "none", declined: "cancelled", applied: "approved" }[newStatus] ?? newStatus;
@@ -685,15 +869,17 @@ export default function Home() {
       console.log("=== パターン振り分け ===");
       console.log("貼り付けテキスト長:", Array.from(pasteText).length, "文字");
       console.log("自己PR候補の文字数:", charCount);
+      console.log("卒年:", cohortYear);
 
-      // 全学生A1/A2/A3ランダム振り分け（Bパターン廃止）
-      const finalPattern = judgeASubPattern();
+      // 卒年で分岐
+      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" =
+        cohortYear === "28" ? judge28SubPattern() : judgeASubPattern();
       console.log("最終パターン:", finalPattern);
       setPattern(finalPattern);
 
       const geminiOutputs: typeof currentGeminiOutputs = {};
 
-      // A1/A2/A3パターン: Geminiでtitleとopening_messageを生成
+      // titleとopening_messageを生成（Geminiプロンプトは卒年問わず共通）
       console.log(`=== ${finalPattern}パターン処理開始 ===`);
       const titleResponse = await fetch("/api/gemini", {
         method: "POST",
@@ -714,7 +900,10 @@ export default function Home() {
       }
 
       geminiOutputs.title = title;
-      const titleLine = buildTitleLine(title, finalPattern);
+      const titleLine =
+        finalPattern === "28A" || finalPattern === "28B"
+          ? build28TitleLine(title)
+          : buildTitleLine(title, finalPattern);
 
       // opening_message生成
       const openingResponse = await fetch("/api/gemini", {
@@ -746,7 +935,10 @@ export default function Home() {
       );
 
       // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
-      const fixedText = getFixedTextForPattern(finalPattern);
+      const fixedText =
+        finalPattern === "28A" || finalPattern === "28B"
+          ? getFixedTextFor28Pattern(finalPattern)
+          : getFixedTextForPattern(finalPattern);
       const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
       setGeneratedMessage(finalMessage);
 
@@ -787,6 +979,7 @@ export default function Home() {
               templateType: pattern,
               finalMessage: generatedMessage,
               sourceText: pasteText,
+              cohortYear,
             }),
           });
           if (dbRes.ok) {
@@ -830,26 +1023,45 @@ export default function Home() {
       )}
       
       <div className={`mx-auto max-w-3xl ${isStaging ? "pt-10" : ""}`}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <h1 className="text-2xl font-bold text-gray-800">
             OfferBox スカウト文生成
           </h1>
-          {DB_ENABLED && (
-            <div className="flex gap-2">
-              <a
-                href="/deliveries"
-                className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 text-center min-w-[80px]"
-              >
-                配信履歴
-              </a>
-              <a
-                href="/analytics"
-                className="px-4 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 text-center min-w-[80px]"
-              >
-                集計
-              </a>
+          <div className="flex items-center gap-3">
+            {/* 卒年トグル */}
+            <div className="inline-flex rounded-md overflow-hidden border border-gray-300 bg-white">
+              {(["27", "28"] as const).map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  onClick={() => handleCohortYearChange(y)}
+                  className={`px-3 py-1.5 text-sm font-medium transition-colors ${
+                    cohortYear === y
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-gray-700 hover:bg-gray-100"
+                  }`}
+                >
+                  {y}卒
+                </button>
+              ))}
             </div>
-          )}
+            {DB_ENABLED && (
+              <div className="flex gap-2">
+                <a
+                  href="/deliveries"
+                  className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 text-center min-w-[80px]"
+                >
+                  配信履歴
+                </a>
+                <a
+                  href="/analytics"
+                  className="px-4 py-1.5 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 text-center min-w-[80px]"
+                >
+                  集計
+                </a>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 貼り付け欄 */}

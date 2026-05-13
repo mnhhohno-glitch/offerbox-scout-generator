@@ -51,6 +51,16 @@ interface Delivery {
   onHoldAt: string | null;
   cancelledAt: string | null;
   notes: string | null;
+  cohortYear: string;
+}
+
+const COHORT_STORAGE_KEY = "selected_cohort_year";
+type CohortFilter = "" | "27" | "28";
+
+function getStoredCohortFilter(): CohortFilter {
+  if (typeof window === "undefined") return "28";
+  const v = window.localStorage.getItem(COHORT_STORAGE_KEY);
+  return v === "27" || v === "28" ? v : "28";
 }
 
 interface DeliveriesResponse {
@@ -91,6 +101,50 @@ export default function DeliveriesPage() {
   const [templateType, setTemplateType] = useState("");
   const [studentId7, setStudentId7] = useState("");
   const [offerStatus, setOfferStatus] = useState("");
+  const [cohortYear, setCohortYear] = useState<CohortFilter>("28");
+
+  // 卒年フィルタの初期値を localStorage から復元
+  useEffect(() => {
+    setCohortYear(getStoredCohortFilter());
+  }, []);
+
+  // 卒年フィルタの選択肢に応じてテンプレフィルタの選択肢を切り替え
+  const templateOptions: { value: string; label: string }[] = (() => {
+    if (cohortYear === "27") {
+      return [
+        { value: "", label: "すべて" },
+        { value: "A", label: "A（全て）" },
+        { value: "A1", label: "A1" },
+        { value: "A2", label: "A2" },
+        { value: "A3", label: "A3" },
+        { value: "B", label: "B" },
+      ];
+    }
+    if (cohortYear === "28") {
+      return [
+        { value: "", label: "すべて" },
+        { value: "28A", label: "28A" },
+        { value: "28B", label: "28B" },
+      ];
+    }
+    return [
+      { value: "", label: "すべて" },
+      { value: "A", label: "A（全て）" },
+      { value: "A1", label: "A1" },
+      { value: "A2", label: "A2" },
+      { value: "A3", label: "A3" },
+      { value: "B", label: "B" },
+      { value: "28A", label: "28A" },
+      { value: "28B", label: "28B" },
+    ];
+  })();
+
+  // 卒年フィルタを変更したら、現在のテンプレフィルタが選択肢にない場合はリセット
+  useEffect(() => {
+    if (templateType && !templateOptions.some((o) => o.value === templateType)) {
+      setTemplateType("");
+    }
+  }, [cohortYear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // コピー状態
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -116,6 +170,7 @@ export default function DeliveriesPage() {
       if (templateType) params.set("templateType", templateType);
       if (studentId7) params.set("studentId7", studentId7);
       if (offerStatus) params.set("offerStatus", offerStatus);
+      if (cohortYear) params.set("cohortYear", cohortYear);
 
       const res = await fetch(`/api/deliveries?${params.toString()}`);
       if (!res.ok) throw new Error("データの取得に失敗しました");
@@ -128,7 +183,7 @@ export default function DeliveriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, sendDateFrom, sendDateTo, timeSlot, templateType, studentId7, offerStatus]);
+  }, [page, sendDateFrom, sendDateTo, timeSlot, templateType, studentId7, offerStatus, cohortYear]);
 
   useEffect(() => {
     if (DB_ENABLED) {
@@ -148,6 +203,7 @@ export default function DeliveriesPage() {
     setTemplateType("");
     setStudentId7("");
     setOfferStatus("");
+    setCohortYear("");
     setPage(1);
   };
 
@@ -211,6 +267,7 @@ export default function DeliveriesPage() {
       if (templateType) params.set("templateType", templateType);
       if (studentId7) params.set("studentId7", studentId7);
       if (offerStatus) params.set("offerStatus", offerStatus);
+      if (cohortYear) params.set("cohortYear", cohortYear);
 
       const res = await fetch(`/api/deliveries/export.csv?${params.toString()}`);
 
@@ -330,18 +387,29 @@ export default function DeliveriesPage() {
               </select>
             </div>
             <div>
+              <label className="block text-xs text-gray-900 mb-1">卒年</label>
+              <select
+                value={cohortYear}
+                onChange={(e) => setCohortYear(e.target.value as CohortFilter)}
+                className="w-full border rounded px-2 py-1 text-sm text-gray-900"
+              >
+                <option value="">全て</option>
+                <option value="27">27卒</option>
+                <option value="28">28卒</option>
+              </select>
+            </div>
+            <div>
               <label className="block text-xs text-gray-900 mb-1">テンプレ</label>
               <select
                 value={templateType}
                 onChange={(e) => setTemplateType(e.target.value)}
                 className="w-full border rounded px-2 py-1 text-sm text-gray-900"
               >
-                <option value="">すべて</option>
-                <option value="A">A（全て）</option>
-                <option value="A1">A1</option>
-                <option value="A2">A2</option>
-                <option value="A3">A3</option>
-                <option value="B">B</option>
+                {templateOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -474,6 +542,7 @@ export default function DeliveriesPage() {
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">性別</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">卒業年度</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">パターン</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">卒年</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">状態日付</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">操作</th>
                 </tr>
@@ -535,11 +604,18 @@ export default function DeliveriesPage() {
                       <td className="px-3 py-2 text-center">
                         <span
                           className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 ${
-                            item.templateType === "B" ? "bg-orange-500" : "bg-green-500"
+                            item.templateType === "B"
+                              ? "bg-orange-500"
+                              : item.templateType === "28A" || item.templateType === "28B"
+                              ? "bg-indigo-500"
+                              : "bg-green-500"
                           }`}
                         >
                           {item.templateType}
                         </span>
+                      </td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap text-gray-900">
+                        {item.cohortYear ? `${item.cohortYear}卒` : "-"}
                       </td>
                       <td className="px-3 py-2 text-xs text-gray-900 whitespace-nowrap">
                         {statusDate ? formatDateTime(statusDate) : "-"}

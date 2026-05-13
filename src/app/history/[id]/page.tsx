@@ -74,6 +74,7 @@ interface DeliveryRecord {
   offerStatus: string;
   openStatus: string;
   notes: string | null;
+  cohortYear: string;
 }
 
 const CARD_HEIGHT = 600;

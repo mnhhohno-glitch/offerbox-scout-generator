@@ -22,6 +22,7 @@ interface ImportRecord {
   lastLoginAt?: string;
   offerStatus?: string;
   notes?: string;
+  cohortYear?: string;
 }
 
 // 重複チェック用ハッシュ生成
@@ -83,11 +84,17 @@ export async function POST(request: NextRequest) {
 
         // テンプレート種別を取得
         const templateType = record.templateType || record.pattern;
-        if (!templateType || !["A", "A1", "A2", "A3", "B"].includes(templateType)) {
+        if (!templateType || !["A", "A1", "A2", "A3", "B", "28A", "28B"].includes(templateType)) {
           errors.push(`Record ${i}: templateType が不正です`);
           skipped++;
           continue;
         }
+
+        // 卒年バリデーション（未指定は "27"）
+        const cohortYear =
+          record.cohortYear === "27" || record.cohortYear === "28"
+            ? record.cohortYear
+            : "27";
 
         // 最終文を取得
         const finalMessage = record.finalMessage || record.generatedMessage;
@@ -135,6 +142,7 @@ export async function POST(request: NextRequest) {
             lastLoginAt,
             offerStatus: record.offerStatus || "none",
             notes: record.notes || null,
+            cohortYear,
           },
         });
 
