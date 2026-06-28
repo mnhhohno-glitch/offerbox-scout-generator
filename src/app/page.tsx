@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   extractFacultyName as extractFacultyFromUtils,
   getGenderLabel,
+  extractGender,
 } from "@/lib/extraction-utils";
 
 // 環境変数からアプリ環境を取得
@@ -504,6 +505,111 @@ const FIXED_TEXT_28B = `◆当社の魅力
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
+// 28Cパターン用固定文（28卒｜男性営業ペルソナ）※宛名＋グリーティング＋個別文は別途結合
+const FIXED_TEXT_28C = `◆当社の仕事の面白さ
+私たちの仕事は、
+企業が抱える
+「採用・定着・活躍」の課題を、
+表面的な対応ではなく
+"仕組み"から解決していく仕事です。
+
+目の前の課題に
+対処するだけでなく、
+課題の構造を見抜き、
+提案し、改善まで伴走する、
+コンサルティング要素が
+非常に強いお仕事です。
+
+また、伴走する相手は
+人事部長や経営層など、
+企業の意思決定に関わる方々。
+
+「人と組織を本気で動かす経験」を
+早い段階から積めるのが
+当社の環境です。
+
+◆ワークで体験できること
+今回のワークでは、企業が抱える
+「採用・定着・活躍」の課題と、
+働く人が力を発揮するために
+必要な環境づくりについて考えていただきます。
+
+実際のケースをもとに、
+どのように課題を整理し、
+どのような支援や提案をするかまでを体験できる内容です。
+
+座学では終わりません。
+和気あいあいとしつつ、
+チームで頭をフル回転させて
+課題を解決しにいきましょう！
+
+＊WEB実施／2h
+＊人事からFBあり
+＊希望者には早期選考をご案内
+　（秋頃〜カジュアル面談開始）
+
+◆スタートラインについて
+人材 × 福祉 × ビジネス。
+私たちの主役は「企業」です。
+企業が人を活かせる
+仕組みをどうつくるか——
+
+採用の設計から
+定着・活躍の環境づくりまで、
+企業の根っこに踏み込んで支援し、
+シェアトップクラスの
+実績を築いてきました。
+
+「誰もが活躍できる社会をつくる」
+という意義のあるテーマに、
+ビジネスとして本気で向き合う。
+意義と成長、その両方を
+本気で追える環境です。
+
+◆当社の魅力
+・多様な働き方を創造する会社
+・想いを大切にできる仕事
+・チームワークを大切にする社風
+・シェアトップクラスの実績
+
+◆募集職種
+・営業職
+・コンサルティング職
+・マーケティング職
+・バックオフィス職
+・研究職　など
+希望と適性に合わせて
+配属・職種を決定します！
+
+【働き方】
+・土日祝休
+・平均残業20時間未満
+
+「課題の本質を考えてみたい」
+「未来を広げる仕事が気になる」
+「社会を支える仕事を知りたい」
+
+このような気持ちが
+少しでもあれば、
+きっと新しい発見がある
+時間になると思います。
+
+業界・職種が
+固まっていなくても大丈夫。
+まずは情報収集の機会として
+お気軽にご参加ください。
+
+承諾＝応募ではありません。
+少しでも共感いただけましたら、
+ぜひオファー承諾を
+お願いいたします。
+
+お会いできるのを
+楽しみにしています。
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
 // サブパターンに応じた固定テキストを返す
 function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
   switch (subPattern) {
@@ -514,16 +620,25 @@ function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
 }
 
 // 28卒サブパターンに応じた固定テキストを返す
-function getFixedTextFor28Pattern(subPattern: "28A" | "28B"): string {
+function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C"): string {
   switch (subPattern) {
     case "28A": return FIXED_TEXT_28A;
     case "28B": return FIXED_TEXT_28B;
+    case "28C": return FIXED_TEXT_28C;
   }
 }
 
 // 28卒パターンのランダム振り分け（50/50）
 function judge28SubPattern(): "28A" | "28B" {
   return Math.random() < 0.5 ? "28A" : "28B";
+}
+
+// 28卒・男性向けのランダム振り分け（28A/28B/28C を均等3択）
+function judge28SubPatternMale(): "28A" | "28B" | "28C" {
+  const rand = Math.random();
+  if (rand < 1 / 3) return "28A";
+  if (rand < 2 / 3) return "28B";
+  return "28C";
 }
 
 // 自己PR候補を抽出
@@ -750,7 +865,7 @@ export default function Home() {
   const isStaging = useIsStaging();
   const [pasteText, setPasteText] = useState("");
   const [cohortYear, setCohortYear] = useState<CohortYear>(DEFAULT_COHORT_YEAR);
-  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | null>(null);
+  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | "28C" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
   const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
@@ -866,14 +981,22 @@ export default function Home() {
       const charCount = Array.from(prCandidate).length;
       setPrCharCount(charCount);
 
+      // 性別を抽出（男性のみ新テンプレ対象。女性・空欄・判定不可は従来の2択）
+      const gender = extractGender(pasteText);
+
       console.log("=== パターン振り分け ===");
       console.log("貼り付けテキスト長:", Array.from(pasteText).length, "文字");
       console.log("自己PR候補の文字数:", charCount);
       console.log("卒年:", cohortYear);
+      console.log("性別:", gender ?? "判定不可");
 
-      // 卒年で分岐
-      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" =
-        cohortYear === "28" ? judge28SubPattern() : judgeASubPattern();
+      // 卒年で分岐。28卒かつ男性のみ 28A/28B/28C の3択、それ以外は 28A/28B の2択
+      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" =
+        cohortYear === "28"
+          ? gender === "male"
+            ? judge28SubPatternMale()
+            : judge28SubPattern()
+          : judgeASubPattern();
       console.log("最終パターン:", finalPattern);
       setPattern(finalPattern);
 
@@ -901,7 +1024,7 @@ export default function Home() {
 
       geminiOutputs.title = title;
       const titleLine =
-        finalPattern === "28A" || finalPattern === "28B"
+        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C"
           ? build28TitleLine(title)
           : buildTitleLine(title, finalPattern);
 
@@ -936,7 +1059,7 @@ export default function Home() {
 
       // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
       const fixedText =
-        finalPattern === "28A" || finalPattern === "28B"
+        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C"
           ? getFixedTextFor28Pattern(finalPattern)
           : getFixedTextForPattern(finalPattern);
       const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;

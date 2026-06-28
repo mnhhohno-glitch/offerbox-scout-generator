@@ -39,6 +39,32 @@ export function extractLastLoginAt(text: string): Date | null {
   return null;
 }
 
+// 最終ログイン日時の「生文字列」を抽出（相対表現の括弧も含めてそのまま保持）
+// ID行構造の例: "<会員ID> <YYYY/M/D (相対表現)> <卒業年>年"
+//   例: "1978724 2026/6/24 (1時間前) 2028年" → "2026/6/24 (1時間前)"
+// 抽出できない場合は null（呼び出し側で空欄にフォールバック）。
+export function extractLastLoginRaw(text: string | null | undefined): string | null {
+  if (!text) return null;
+
+  // パターン1: 日付 + 相対表現（括弧）の塊を優先
+  //   全角（）/ 半角() の両方に対応
+  const withParen = text.match(
+    /(\d{4}\/\d{1,2}\/\d{1,2})\s*([（(][^）)]*[）)])/
+  );
+  if (withParen) {
+    return `${withParen[1]} ${withParen[2]}`;
+  }
+
+  // パターン2: 括弧（相対表現）がない場合は日付のみ
+  //   卒業年（"2028年"）はスラッシュを含まないため誤検出しない
+  const dateOnly = text.match(/(\d{4}\/\d{1,2}\/\d{1,2})/);
+  if (dateOnly) {
+    return dateOnly[1];
+  }
+
+  return null;
+}
+
 function parseJSTDateTime(str: string): Date | null {
   try {
     // "2026/02/24 15:30" や "2026-02-24 15:30" を解析
@@ -80,13 +106,19 @@ export type Gender = "male" | "female" | null;
 export function extractGender(text: string): Gender {
   if (!text) return null;
 
-  const pattern = /(性別)\s*[:：]?\s*(男性|女性|男|女)/;
-  const match = text.match(pattern);
-
-  if (match) {
-    const value = match[2];
+  // パターン1: ラベル付き（"性別: 男性" 等）
+  const labeled = text.match(/(性別)\s*[:：]?\s*(男性|女性|男|女)/);
+  if (labeled) {
+    const value = labeled[2];
     if (value === "男性" || value === "男") return "male";
     if (value === "女性" || value === "女") return "female";
+  }
+
+  // パターン2: ラベルなしで本文に直接記載されるケース（例: "大阪府 男性"）
+  //   誤検出を避けるため「男性」「女性」という完全な語のみ対象（単独の「男」「女」は拾わない）
+  const bare = text.match(/(男性|女性)/);
+  if (bare) {
+    return bare[1] === "男性" ? "male" : "female";
   }
 
   return null;

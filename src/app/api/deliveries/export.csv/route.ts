@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatJSTDateTimeForCSV, formatJSTDateTimeForFilename } from "@/lib/time-utils";
-import { getGenderLabel } from "@/lib/extraction-utils";
+import { getGenderLabel, extractLastLoginRaw } from "@/lib/extraction-utils";
 
 // 定数
 const MAX_EXPORT_ROWS = 20000;
@@ -184,6 +184,10 @@ export async function GET(request: NextRequest) {
         }
       }
       const statusDate = getStatusDate(d.offerStatus, d.approvedAt, d.onHoldAt, d.cancelledAt);
+      // 最終ログイン日時: 貼り付け本文（source_text）から生文字列を抽出して投入。
+      // 抽出できない場合は従来のDB値（DateTime）を整形、それも無ければ空欄。
+      const lastLoginCell =
+        extractLastLoginRaw(d.sourceText) || formatJSTDateTimeForCSV(d.lastLoginAt);
       const row = [
         formatJSTDateTimeForCSV(d.sentAt),
         d.sendDate.toISOString().slice(0, 10),
@@ -195,7 +199,7 @@ export async function GET(request: NextRequest) {
         facultyDepartment,
         selectionItem,
         getGenderLabel(d.gender),
-        formatJSTDateTimeForCSV(d.lastLoginAt),
+        lastLoginCell,
         getStatusLabel(d.offerStatus),
         getOpenStatusLabel(d.openStatus),
         formatJSTDateTimeForCSV(statusDate),
