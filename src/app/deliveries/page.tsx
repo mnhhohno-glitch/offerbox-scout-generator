@@ -125,6 +125,7 @@ export default function DeliveriesPage() {
         { value: "", label: "すべて" },
         { value: "28A", label: "28A" },
         { value: "28B", label: "28B" },
+        { value: "28C", label: "28C" },
       ];
     }
     return [
@@ -136,6 +137,7 @@ export default function DeliveriesPage() {
       { value: "B", label: "B" },
       { value: "28A", label: "28A" },
       { value: "28B", label: "28B" },
+      { value: "28C", label: "28C" },
     ];
   })();
 
@@ -606,7 +608,7 @@ export default function DeliveriesPage() {
                           className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 ${
                             item.templateType === "B"
                               ? "bg-orange-500"
-                              : item.templateType === "28A" || item.templateType === "28B"
+                              : item.templateType === "28A" || item.templateType === "28B" || item.templateType === "28C"
                               ? "bg-indigo-500"
                               : "bg-green-500"
                           }`}

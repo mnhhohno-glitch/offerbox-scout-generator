@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
         // テンプレート種別を取得
         const templateType = record.templateType || record.pattern;
-        if (!templateType || !["A", "A1", "A2", "A3", "B", "28A", "28B"].includes(templateType)) {
+        if (!templateType || !["A", "A1", "A2", "A3", "B", "28A", "28B", "28C"].includes(templateType)) {
           errors.push(`Record ${i}: templateType が不正です`);
           skipped++;
           continue;
