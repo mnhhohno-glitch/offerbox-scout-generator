@@ -628,9 +628,9 @@ function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C"): string {
   }
 }
 
-// 28卒パターンのランダム振り分け（50/50）
-function judge28SubPattern(): "28A" | "28B" {
-  return Math.random() < 0.5 ? "28A" : "28B";
+// 28卒・男性以外は 28B 固定（28A は出さない）
+function judge28SubPattern(): "28B" {
+  return "28B";
 }
 
 // 28卒・男性向けのランダム振り分け（28A/28B/28C を均等3択）
@@ -990,7 +990,7 @@ export default function Home() {
       console.log("卒年:", cohortYear);
       console.log("性別:", gender ?? "判定不可");
 
-      // 卒年で分岐。28卒かつ男性のみ 28A/28B/28C の3択、それ以外は 28A/28B の2択
+      // 卒年で分岐。28卒かつ男性のみ 28A/28B/28C の3択、それ以外は 28B 固定
       const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" =
         cohortYear === "28"
           ? gender === "male"
