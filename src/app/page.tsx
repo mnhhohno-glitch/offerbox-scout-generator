@@ -610,6 +610,149 @@ const FIXED_TEXT_28C = `◆当社の仕事の面白さ
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
+// 28Dパターン用固定文（28卒｜プロフィール500文字以下の学生向け）※タイトル行＋グリーティング＋個別文は別途結合
+const FIXED_TEXT_28D = `◆当社の魅力
+・多様な働き方を創造する会社
+・想いを大切にできる仕事
+・チームワークを大切にする社風
+・シェアトップクラスの実績
+
+◆募集職種
+・営業職
+・コンサルティング職
+・マーケティング職
+・バックオフィス職
+・研究職　　など
+希望と適性に合わせて
+配属・職種を決定します！
+
+【働き方】
+・土日祝休
+・平均残業20時間未満
+
+■スタートラインについて
+私たちは、
+企業と働く人の間にある
+様々な課題を解決し、
+誰もが自分らしく活躍できる
+環境づくりを支援する企業です。
+
+人材×福祉×ビジネスの領域で、
+「人が活躍できる環境をどうつくるか」を考えています。
+
+福祉と聞くと「支える仕事」というイメージを持つ方も多いかもしれませんが、私たちは企業や社会の仕組みの中で、一人ひとりが活躍できる環境をつくることに向き合っています。
+
+■ワークで体験できること
+今回のワークでは、企業が抱える
+「採用・定着・活躍」の課題と、
+働く人が力を発揮するために
+必要な環境づくりについて考えていただきます。
+
+実際のケースをもとに、
+どのように課題を整理し、
+どのような支援や提案をするかまでを体験できる内容です。
+
+当社の仕事の面白さや難しさ、
+大切にしている考え方まで体験を通じて知っていただけます。
+
+「課題の本質を考えてみたい」
+「未来を広げる仕事が気になる」
+「社会を支える仕事を知りたい」
+
+このような気持ちが
+少しでもあれば、
+きっと新しい発見がある
+時間になると思います。
+
+＊WEB実施/2h
+＊人事からFBあり
+＊希望者には早期選考をご案内
+秋頃から説明会や
+カジュアル面談を開始予定です★
+
+少人数で
+意見交換しながら進めるため
+初めての方でも
+参加しやすい雰囲気です。
+
+承諾＝応募ではありませんので、
+業界や職種がまだ決まっていない方でも大丈夫です。
+まずは情報収集の機会として、
+お気軽にご参加ください。
+もし少しでも
+共感いただけましたら
+是非オファー承諾を
+お願いいたします。
+
+お会いできることを
+楽しみにしています。
+
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
+// 28SPパターン用固定文（28卒｜サポーター職・SPボタン専用）※タイトル行＋グリーティング＋個別文は別途結合
+const FIXED_TEXT_28SP = `◆当社の魅力
+・多様な働き方を創造する会社
+・想いを大切にできる仕事
+・チームワークを大切にする社風
+・シェアトップクラスの実績
+
+◆スタートラインについて
+私たちは、
+企業と働く人の間にある
+様々な課題を解決し、
+誰もが自分らしく活躍できる
+環境づくりを支援する企業です。
+人材×コンサル×福祉の領域で、
+「人が活躍できる環境をどうつくるか」を考えています。
+
+◆ワークで体験できること
+わたしたちの仕事で行われている
+支援技術や、課題発見・解決の考え方を
+ワーク形式で体験できます。
+
+・「人の行動には理由がある」
+　支援の基礎となる考え方を、ワークを交えて体験
+・「こんな時、あなたならどうする？」
+　現場のリアルな場面をグループで考える
+・仕事の面白さや難しさ、
+　大切にしている考え方まで、体験を通じて知る
+
+「多くの人を支えたい」
+「成長支援について学んでみたい」
+「社会を支える仕事を知りたい」
+このような気持ちが
+少しでもあれば、
+きっと新しい発見がある
+時間になると思います。
+
+＊WEB実施／2h
+＊人事からFBあり
+＊ご参加で一次面接を免除
+＊希望者には早期選考をご案内
+
+少人数で
+意見交換しながら進めるため
+初めての方でも
+参加しやすい雰囲気です。
+
+承諾＝応募ではありませんので、
+業界や職種がまだ決まっていない方でも大丈夫です。
+まずは情報収集の機会として、
+お気軽にご参加ください。
+
+もし少しでも
+共感いただけましたら
+是非オファー承諾を
+お願いいたします。
+
+お会いできることを
+楽しみにしています。
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
 // サブパターンに応じた固定テキストを返す
 function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
   switch (subPattern) {
@@ -620,11 +763,13 @@ function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
 }
 
 // 28卒サブパターンに応じた固定テキストを返す
-function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C"): string {
+function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C" | "28D" | "28SP"): string {
   switch (subPattern) {
     case "28A": return FIXED_TEXT_28A;
     case "28B": return FIXED_TEXT_28B;
     case "28C": return FIXED_TEXT_28C;
+    case "28D": return FIXED_TEXT_28D;
+    case "28SP": return FIXED_TEXT_28SP;
   }
 }
 
@@ -865,7 +1010,7 @@ export default function Home() {
   const isStaging = useIsStaging();
   const [pasteText, setPasteText] = useState("");
   const [cohortYear, setCohortYear] = useState<CohortYear>(DEFAULT_COHORT_YEAR);
-  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | "28C" | null>(null);
+  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | "28C" | "28D" | "28SP" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
   const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
@@ -963,7 +1108,7 @@ export default function Home() {
     setCurrentGeminiOutputs({});
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (mode: "normal" | "sp" = "normal") => {
     if (!pasteText.trim()) {
       return;
     }
@@ -984,16 +1129,24 @@ export default function Home() {
       // 性別を抽出（男性のみ新テンプレ対象。女性・空欄・判定不可は従来の2択）
       const gender = extractGender(pasteText);
 
+      // 貼り付け全文の文字数（前後の空白をトリムして数える）
+      const pasteCharCount = Array.from(pasteText.trim()).length;
+
       console.log("=== パターン振り分け ===");
-      console.log("貼り付けテキスト長:", Array.from(pasteText).length, "文字");
+      console.log("貼り付けテキスト長（トリム後）:", pasteCharCount, "文字");
       console.log("自己PR候補の文字数:", charCount);
       console.log("卒年:", cohortYear);
       console.log("性別:", gender ?? "判定不可");
+      console.log("生成モード:", mode);
 
-      // 卒年で分岐。28卒かつ男性のみ 28A/28B/28C の3択、それ以外は 28B 固定
-      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" =
+      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28A/28B/28C3択 / それ以外→28B固定
+      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" | "28D" | "28SP" =
         cohortYear === "28"
-          ? gender === "male"
+          ? mode === "sp"
+            ? "28SP"
+            : pasteCharCount <= 500
+            ? "28D"
+            : gender === "male"
             ? judge28SubPatternMale()
             : judge28SubPattern()
           : judgeASubPattern();
@@ -1024,7 +1177,7 @@ export default function Home() {
 
       geminiOutputs.title = title;
       const titleLine =
-        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C"
+        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C" || finalPattern === "28D" || finalPattern === "28SP"
           ? build28TitleLine(title)
           : buildTitleLine(title, finalPattern);
 
@@ -1059,7 +1212,7 @@ export default function Home() {
 
       // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
       const fixedText =
-        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C"
+        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C" || finalPattern === "28D" || finalPattern === "28SP"
           ? getFixedTextFor28Pattern(finalPattern)
           : getFixedTextForPattern(finalPattern);
       const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
@@ -1212,14 +1365,24 @@ export default function Home() {
         </div>
 
         {/* 文書作成ボタン */}
-        <div className="mb-6">
+        <div className="mb-6 flex flex-wrap gap-3">
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate("normal")}
             disabled={!pasteText.trim() || loading}
             className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
           >
-            {loading ? "生成中…" : "文書作成"}
+            {loading ? "生成中…" : cohortYear === "28" ? "文書作成（通常）" : "文書作成"}
           </button>
+          {/* SPボタンは28卒のみ有効（27卒では非表示） */}
+          {cohortYear === "28" && (
+            <button
+              onClick={() => handleGenerate("sp")}
+              disabled={!pasteText.trim() || loading}
+              className="rounded-lg bg-teal-600 px-6 py-3 font-medium text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+            >
+              {loading ? "生成中…" : "文書作成（SP）"}
+            </button>
+          )}
         </div>
 
         {/* エラー表示 */}

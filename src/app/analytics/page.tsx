@@ -123,7 +123,7 @@ export default function AnalyticsPage() {
 
   // 表示用テンプレ種別（卒年に応じて変更）
   const TEMPLATE_TYPES_27 = ["A1", "A2", "A3", "B"] as const;
-  const TEMPLATE_TYPES_28 = ["28A", "28B", "28C"] as const;
+  const TEMPLATE_TYPES_28 = ["28A", "28B", "28C", "28D", "28SP"] as const;
   const displayTemplates: readonly string[] =
     cohortYear === "28"
       ? TEMPLATE_TYPES_28
@@ -142,6 +142,8 @@ export default function AnalyticsPage() {
   const total28A = rows.filter((r) => r.templateType === "28A").reduce((sum, r) => sum + r.count, 0);
   const total28B = rows.filter((r) => r.templateType === "28B").reduce((sum, r) => sum + r.count, 0);
   const total28C = rows.filter((r) => r.templateType === "28C").reduce((sum, r) => sum + r.count, 0);
+  const total28D = rows.filter((r) => r.templateType === "28D").reduce((sum, r) => sum + r.count, 0);
+  const total28SP = rows.filter((r) => r.templateType === "28SP").reduce((sum, r) => sum + r.count, 0);
   const total27Cohort = rows.filter((r) => r.cohortYear === "27").reduce((sum, r) => sum + r.count, 0);
   const total28Cohort = rows.filter((r) => r.cohortYear === "28").reduce((sum, r) => sum + r.count, 0);
 
@@ -171,6 +173,8 @@ export default function AnalyticsPage() {
   const sent28A = sumBy(cohortSummary?.sent, "28", (t) => t === "28A");
   const sent28B = sumBy(cohortSummary?.sent, "28", (t) => t === "28B");
   const sent28C = sumBy(cohortSummary?.sent, "28", (t) => t === "28C");
+  const sent28D = sumBy(cohortSummary?.sent, "28", (t) => t === "28D");
+  const sent28SP = sumBy(cohortSummary?.sent, "28", (t) => t === "28SP");
   const approved27A1 = sumBy(cohortSummary?.approved, "27", (t) => t === "A1");
   const approved27A2 = sumBy(cohortSummary?.approved, "27", (t) => t === "A2");
   const approved27A3 = sumBy(cohortSummary?.approved, "27", (t) => t === "A3");
@@ -178,6 +182,8 @@ export default function AnalyticsPage() {
   const approved28A = sumBy(cohortSummary?.approved, "28", (t) => t === "28A");
   const approved28B = sumBy(cohortSummary?.approved, "28", (t) => t === "28B");
   const approved28C = sumBy(cohortSummary?.approved, "28", (t) => t === "28C");
+  const approved28D = sumBy(cohortSummary?.approved, "28", (t) => t === "28D");
+  const approved28SP = sumBy(cohortSummary?.approved, "28", (t) => t === "28SP");
 
   const rate = (n: number, d: number) => (d > 0 ? (n / d) * 100 : 0);
   const formatPct = (v: number) => `${v.toFixed(1)}%`;
@@ -336,7 +342,7 @@ export default function AnalyticsPage() {
                 </div>
               )}
               {cohortYear === "28" && (
-                <div className="grid grid-cols-4 gap-4 text-center">
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
                   <div className="bg-gray-100 rounded p-3">
                     <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
                     <p className="text-xs text-gray-900">合計</p>
@@ -352,6 +358,14 @@ export default function AnalyticsPage() {
                   <div className="bg-indigo-100 rounded p-3">
                     <p className="text-2xl font-bold text-indigo-700">{total28C}</p>
                     <p className="text-xs text-gray-900">28C</p>
+                  </div>
+                  <div className="bg-indigo-100 rounded p-3">
+                    <p className="text-2xl font-bold text-indigo-700">{total28D}</p>
+                    <p className="text-xs text-gray-900">28D</p>
+                  </div>
+                  <div className="bg-indigo-100 rounded p-3">
+                    <p className="text-2xl font-bold text-indigo-700">{total28SP}</p>
+                    <p className="text-xs text-gray-900">28SP</p>
                   </div>
                 </div>
               )}
@@ -508,6 +522,8 @@ export default function AnalyticsPage() {
                       <li>28A: {sent28A} <span className="text-gray-600">（承諾 {approved28A}）</span></li>
                       <li>28B: {sent28B} <span className="text-gray-600">（承諾 {approved28B}）</span></li>
                       <li>28C: {sent28C} <span className="text-gray-600">（承諾 {approved28C}）</span></li>
+                      <li>28D: {sent28D} <span className="text-gray-600">（承諾 {approved28D}）</span></li>
+                      <li>28SP: {sent28SP} <span className="text-gray-600">（承諾 {approved28SP}）</span></li>
                     </ul>
                   </div>
                 </div>

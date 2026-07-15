@@ -126,6 +126,8 @@ export default function DeliveriesPage() {
         { value: "28A", label: "28A" },
         { value: "28B", label: "28B" },
         { value: "28C", label: "28C" },
+        { value: "28D", label: "28D" },
+        { value: "28SP", label: "28SP" },
       ];
     }
     return [
@@ -138,6 +140,8 @@ export default function DeliveriesPage() {
       { value: "28A", label: "28A" },
       { value: "28B", label: "28B" },
       { value: "28C", label: "28C" },
+      { value: "28D", label: "28D" },
+      { value: "28SP", label: "28SP" },
     ];
   })();
 
@@ -608,7 +612,7 @@ export default function DeliveriesPage() {
                           className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 ${
                             item.templateType === "B"
                               ? "bg-orange-500"
-                              : item.templateType === "28A" || item.templateType === "28B" || item.templateType === "28C"
+                              : item.templateType === "28A" || item.templateType === "28B" || item.templateType === "28C" || item.templateType === "28D" || item.templateType === "28SP"
                               ? "bg-indigo-500"
                               : "bg-green-500"
                           }`}
