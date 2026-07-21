@@ -773,17 +773,20 @@ function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C" | "28D" | "2
   }
 }
 
-// 28卒・男性以外は 28B 固定（28A は出さない）
-function judge28SubPattern(): "28B" {
-  return "28B";
-}
-
-// 28卒・男性向けのランダム振り分け（28A/28B/28C を均等3択）
-function judge28SubPatternMale(): "28A" | "28B" | "28C" {
+// 28卒・男性以外向けのランダム振り分け（28A/28B/28D を均等3択）※28C は男性営業ペルソナのため除外
+function judge28SubPatternFemale(): "28A" | "28B" | "28D" {
   const rand = Math.random();
   if (rand < 1 / 3) return "28A";
   if (rand < 2 / 3) return "28B";
-  return "28C";
+  return "28D";
+}
+
+// 28卒・男性向けのランダム振り分け（28B/28C/28D を均等3択）※28A は女性ほか専用のため除外
+function judge28SubPatternMale(): "28B" | "28C" | "28D" {
+  const rand = Math.random();
+  if (rand < 1 / 3) return "28B";
+  if (rand < 2 / 3) return "28C";
+  return "28D";
 }
 
 // 自己PR候補を抽出
@@ -1126,7 +1129,7 @@ export default function Home() {
       const charCount = Array.from(prCandidate).length;
       setPrCharCount(charCount);
 
-      // 性別を抽出（男性のみ新テンプレ対象。女性・空欄・判定不可は従来の2択）
+      // 性別を抽出（男性は28B/28C/28D。女性・空欄・判定不可は28A/28B/28D）
       const gender = extractGender(pasteText);
 
       // 貼り付け全文の文字数（前後の空白をトリムして数える）
@@ -1139,7 +1142,7 @@ export default function Home() {
       console.log("性別:", gender ?? "判定不可");
       console.log("生成モード:", mode);
 
-      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28A/28B/28C3択 / それ以外→28B固定
+      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28B/28C/28D3択 / それ以外→28A/28B/28D3択
       const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" | "28D" | "28SP" =
         cohortYear === "28"
           ? mode === "sp"
@@ -1148,7 +1151,7 @@ export default function Home() {
             ? "28D"
             : gender === "male"
             ? judge28SubPatternMale()
-            : judge28SubPattern()
+            : judge28SubPatternFemale()
           : judgeASubPattern();
       console.log("最終パターン:", finalPattern);
       setPattern(finalPattern);
