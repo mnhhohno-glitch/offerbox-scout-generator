@@ -773,20 +773,25 @@ function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C" | "28D" | "2
   }
 }
 
-// 28卒・男性以外向けのランダム振り分け（28A/28B/28D を均等3択）※28C は男性営業ペルソナのため除外
-function judge28SubPatternFemale(): "28A" | "28B" | "28D" {
+// 28Dパターンの適用上限文字数（貼り付け全文の文字数がこの値以下のときだけ28D固定）
+const PATTERN_28D_MAX_CHARS = 500;
+
+// 28D判定に使う文字数の計算。trim以外の加工はしない（判定と画面表示で必ずこの関数を共用する）
+function countPasteCharsForJudge(text: string): number {
+  return Array.from(text.trim()).length;
+}
+
+// 28卒・男性以外は 28B 固定（28D は文字数判定でのみ出すため抽選に含めない）
+function judge28SubPatternFemale(): "28B" {
+  return "28B";
+}
+
+// 28卒・男性向けのランダム振り分け（28A/28B/28C を均等3択）※28D は抽選に含めない
+function judge28SubPatternMale(): "28A" | "28B" | "28C" {
   const rand = Math.random();
   if (rand < 1 / 3) return "28A";
   if (rand < 2 / 3) return "28B";
-  return "28D";
-}
-
-// 28卒・男性向けのランダム振り分け（28B/28C/28D を均等3択）※28A は女性ほか専用のため除外
-function judge28SubPatternMale(): "28B" | "28C" | "28D" {
-  const rand = Math.random();
-  if (rand < 1 / 3) return "28B";
-  if (rand < 2 / 3) return "28C";
-  return "28D";
+  return "28C";
 }
 
 // 自己PR候補を抽出
@@ -1016,6 +1021,8 @@ export default function Home() {
   const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | "28C" | "28D" | "28SP" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
+  // 28D判定に実際に使った文字数（再発検知用に画面へ表示する）
+  const [judgedCharCount, setJudgedCharCount] = useState<number | null>(null);
   const [openingMessageCharCount, setOpeningMessageCharCount] = useState<
     number | null
   >(null);
@@ -1104,6 +1111,7 @@ export default function Home() {
     setPattern(null);
     setGeneratedMessage("");
     setPrCharCount(null);
+    setJudgedCharCount(null);
     setOpeningMessageCharCount(null);
     setExtractedFaculty(null);
     setError(null);
@@ -1129,11 +1137,12 @@ export default function Home() {
       const charCount = Array.from(prCandidate).length;
       setPrCharCount(charCount);
 
-      // 性別を抽出（男性は28B/28C/28D。女性・空欄・判定不可は28A/28B/28D）
+      // 性別を抽出（男性は28A/28B/28Cの3択。女性・空欄・判定不可は28B固定）
       const gender = extractGender(pasteText);
 
-      // 貼り付け全文の文字数（前後の空白をトリムして数える）
-      const pasteCharCount = Array.from(pasteText.trim()).length;
+      // 貼り付け全文の文字数（前後の空白をトリムして数える）※28D判定と画面表示はこの値を共用
+      const pasteCharCount = countPasteCharsForJudge(pasteText);
+      setJudgedCharCount(pasteCharCount);
 
       console.log("=== パターン振り分け ===");
       console.log("貼り付けテキスト長（トリム後）:", pasteCharCount, "文字");
@@ -1142,12 +1151,13 @@ export default function Home() {
       console.log("性別:", gender ?? "判定不可");
       console.log("生成モード:", mode);
 
-      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28B/28C/28D3択 / それ以外→28A/28B/28D3択
+      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28A/28B/28C3択 / それ以外→28B固定
+      // ※28Dは「0文字超かつPATTERN_28D_MAX_CHARS以下」のときだけ。抽選側からは28Dを出さない
       const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" | "28D" | "28SP" =
         cohortYear === "28"
           ? mode === "sp"
             ? "28SP"
-            : pasteCharCount <= 500
+            : pasteCharCount > 0 && pasteCharCount <= PATTERN_28D_MAX_CHARS
             ? "28D"
             : gender === "male"
             ? judge28SubPatternMale()
@@ -1387,6 +1397,13 @@ export default function Home() {
             </button>
           )}
         </div>
+
+        {/* パターン判定に使った文字数（28D判定の再発検知用） */}
+        {judgedCharCount !== null && (
+          <div className="-mt-4 mb-6 text-xs text-gray-400">
+            判定文字数: {judgedCharCount}文字
+          </div>
+        )}
 
         {/* エラー表示 */}
         {error && (
