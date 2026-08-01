@@ -781,16 +781,19 @@ function countPasteCharsForJudge(text: string): number {
   return Array.from(text.trim()).length;
 }
 
-// 28卒・男性以外は 28B 固定（28D は文字数判定でのみ出すため抽選に含めない）
-function judge28SubPatternFemale(): "28B" {
+// 28卒・男性以外向けのランダム振り分け（28A/28B を均等2択）
+// ※28C は男性営業ペルソナのため除外。28D は文字数判定でのみ出すため抽選に含めない
+function judge28SubPatternFemale(): "28A" | "28B" {
+  const rand = Math.random();
+  if (rand < 1 / 2) return "28A";
   return "28B";
 }
 
-// 28卒・男性向けのランダム振り分け（28A/28B/28C を均等3択）※28D は抽選に含めない
-function judge28SubPatternMale(): "28A" | "28B" | "28C" {
+// 28卒・男性向けのランダム振り分け（28B/28C を均等2択）
+// ※28A は女性ほか専用のため除外。28D は文字数判定でのみ出すため抽選に含めない
+function judge28SubPatternMale(): "28B" | "28C" {
   const rand = Math.random();
-  if (rand < 1 / 3) return "28A";
-  if (rand < 2 / 3) return "28B";
+  if (rand < 1 / 2) return "28B";
   return "28C";
 }
 
@@ -1137,7 +1140,7 @@ export default function Home() {
       const charCount = Array.from(prCandidate).length;
       setPrCharCount(charCount);
 
-      // 性別を抽出（男性は28A/28B/28Cの3択。女性・空欄・判定不可は28B固定）
+      // 性別を抽出（男性は28B/28Cの2択。女性・空欄・判定不可は28A/28Bの2択）
       const gender = extractGender(pasteText);
 
       // 貼り付け全文の文字数（前後の空白をトリムして数える）※28D判定と画面表示はこの値を共用
@@ -1151,7 +1154,7 @@ export default function Home() {
       console.log("性別:", gender ?? "判定不可");
       console.log("生成モード:", mode);
 
-      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28A/28B/28C3択 / それ以外→28B固定
+      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28B/28C2択 / それ以外→28A/28B2択
       // ※28Dは「0文字超かつPATTERN_28D_MAX_CHARS以下」のときだけ。抽選側からは28Dを出さない
       const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" | "28D" | "28SP" =
         cohortYear === "28"
