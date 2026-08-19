@@ -781,20 +781,13 @@ function countPasteCharsForJudge(text: string): number {
   return Array.from(text.trim()).length;
 }
 
-// 28卒・男性以外向けのランダム振り分け（28A/28B を均等2択）
-// ※28C は男性営業ペルソナのため除外。28D は文字数判定でのみ出すため抽選に含めない
-function judge28SubPatternFemale(): "28A" | "28B" {
+// 28卒向けのランダム振り分け（性別によらず 28A/28B を均等2択）
+// ※28C は抽選対象から除外（テンプレ定義と集計側の表示は過去実績のため残す）
+// ※28D は文字数判定でのみ出すため抽選に含めない
+function judge28SubPattern(): "28A" | "28B" {
   const rand = Math.random();
   if (rand < 1 / 2) return "28A";
   return "28B";
-}
-
-// 28卒・男性向けのランダム振り分け（28B/28C を均等2択）
-// ※28A は女性ほか専用のため除外。28D は文字数判定でのみ出すため抽選に含めない
-function judge28SubPatternMale(): "28B" | "28C" {
-  const rand = Math.random();
-  if (rand < 1 / 2) return "28B";
-  return "28C";
 }
 
 // 自己PR候補を抽出
@@ -1140,7 +1133,7 @@ export default function Home() {
       const charCount = Array.from(prCandidate).length;
       setPrCharCount(charCount);
 
-      // 性別を抽出（男性は28B/28Cの2択。女性・空欄・判定不可は28A/28Bの2択）
+      // 性別を抽出（抽選には使わない。ログ表示・確認用）
       const gender = extractGender(pasteText);
 
       // 貼り付け全文の文字数（前後の空白をトリムして数える）※28D判定と画面表示はこの値を共用
@@ -1154,17 +1147,15 @@ export default function Home() {
       console.log("性別:", gender ?? "判定不可");
       console.log("生成モード:", mode);
 
-      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / 男性→28B/28C2択 / それ以外→28A/28B2択
+      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / それ以外→性別によらず28A/28B2択
       // ※28Dは「0文字超かつPATTERN_28D_MAX_CHARS以下」のときだけ。抽選側からは28Dを出さない
-      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28C" | "28D" | "28SP" =
+      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28D" | "28SP" =
         cohortYear === "28"
           ? mode === "sp"
             ? "28SP"
             : pasteCharCount > 0 && pasteCharCount <= PATTERN_28D_MAX_CHARS
             ? "28D"
-            : gender === "male"
-            ? judge28SubPatternMale()
-            : judge28SubPatternFemale()
+            : judge28SubPattern()
           : judgeASubPattern();
       console.log("最終パターン:", finalPattern);
       setPattern(finalPattern);
@@ -1193,7 +1184,7 @@ export default function Home() {
 
       geminiOutputs.title = title;
       const titleLine =
-        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C" || finalPattern === "28D" || finalPattern === "28SP"
+        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28D" || finalPattern === "28SP"
           ? build28TitleLine(title)
           : buildTitleLine(title, finalPattern);
 
@@ -1228,7 +1219,7 @@ export default function Home() {
 
       // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
       const fixedText =
-        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28C" || finalPattern === "28D" || finalPattern === "28SP"
+        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28D" || finalPattern === "28SP"
           ? getFixedTextFor28Pattern(finalPattern)
           : getFixedTextForPattern(finalPattern);
       const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
