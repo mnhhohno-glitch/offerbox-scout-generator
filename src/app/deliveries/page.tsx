@@ -572,13 +572,13 @@ export default function DeliveriesPage() {
                 <tr>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">配信日時</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">ID(7桁)</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">開封</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">選考</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">大学</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">学部学科</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">専攻</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">選考中項目</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">居住地</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">選考</th>
-                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">開封</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">性別</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">卒業年度</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">パターン</th>
@@ -618,27 +618,6 @@ export default function DeliveriesPage() {
                           {item.studentId7 || "-"}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{item.universityName || "-"}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{facultyDept}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{major}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{selectionItem}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{prefecture}</td>
-                      <td className="px-3 py-2">
-                        <select
-                          value={{ offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus}
-                          onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                          className={`px-2 py-1 rounded text-xs font-medium ${
-                            STATUS_OPTIONS.find((o) => o.value === ({ offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus))?.color ||
-                            "bg-gray-200"
-                          }`}
-                        >
-                          {STATUS_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
                       <td className="px-3 py-2">
                         <select
                           value={
@@ -659,6 +638,27 @@ export default function DeliveriesPage() {
                           ))}
                         </select>
                       </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={{ offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus}
+                          onChange={(e) => handleStatusChange(item.id, e.target.value)}
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            STATUS_OPTIONS.find((o) => o.value === ({ offered: "none", declined: "cancelled", applied: "approved" }[item.offerStatus] ?? item.offerStatus))?.color ||
+                            "bg-gray-200"
+                          }`}
+                        >
+                          {STATUS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{item.universityName || "-"}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{facultyDept}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{major}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{selectionItem}</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-gray-900">{prefecture}</td>
                       <td className="px-3 py-2 text-center whitespace-nowrap text-gray-900">{getGenderLabel(item.gender) || "-"}</td>
                       <td className="px-3 py-2 text-center whitespace-nowrap text-gray-900">{graduation}</td>
                       <td className="px-3 py-2 text-center">
