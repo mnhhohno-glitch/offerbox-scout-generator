@@ -256,3 +256,49 @@ export function extractGraduationYear(text: string): string | null {
 
   return null;
 }
+
+// 志望業界・志望職種の抽出（第1〜第3希望）
+// OfferBoxプロフィールの貼り付け原文には、ラベルの後にタブ区切りで希望が並ぶ行がある。
+//   例: "志望業界\tIT・通信\tメーカー\t商社"
+// ラベル部分を除いた残りをタブで分割し、先頭から順に第1・第2・第3希望へ割り当てる。
+// 該当行が無い場合、希望が3つ揃っていない場合は空文字で埋める。
+// 「まだ決まっていない、わからない」等の値もそのまま返す（未入力と区別するため）。
+function extractTabSeparatedPreferences(
+  text: string | null | undefined,
+  label: string
+): [string, string, string] {
+  const empty: [string, string, string] = ["", "", ""];
+  if (!text) return empty;
+
+  try {
+    const line = text
+      .split(/\r\n|\r|\n/)
+      .find((l) => l.trimStart().startsWith(label));
+    if (!line) return empty;
+
+    // ラベルと直後の区切り（コロン・空白・タブ）を除去してからタブ分割
+    const rest = line.trimStart().slice(label.length).replace(/^[:：\s]+/, "");
+    const values = rest
+      .split("\t")
+      .map((v) => v.trim())
+      .filter((v) => v !== "" && !/^第\s*\d+\s*希望$/.test(v));
+
+    return [values[0] ?? "", values[1] ?? "", values[2] ?? ""];
+  } catch {
+    return empty;
+  }
+}
+
+// 志望業界（第1〜第3希望）
+export function extractDesiredIndustries(
+  text: string | null | undefined
+): [string, string, string] {
+  return extractTabSeparatedPreferences(text, "志望業界");
+}
+
+// 志望職種（第1〜第3希望）
+export function extractDesiredJobTypes(
+  text: string | null | undefined
+): [string, string, string] {
+  return extractTabSeparatedPreferences(text, "志望職種");
+}

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { formatJSTDateTimeForCSV, formatJSTDateTimeForFilename } from "@/lib/time-utils";
-import { getGenderLabel, extractLastLoginRaw } from "@/lib/extraction-utils";
+import {
+  getGenderLabel,
+  extractLastLoginRaw,
+  extractDesiredIndustries,
+  extractDesiredJobTypes,
+} from "@/lib/extraction-utils";
 
 // 定数
 const MAX_EXPORT_ROWS = 20000;
@@ -164,6 +169,12 @@ export async function GET(request: NextRequest) {
       "オファー状態",
       "開封ステータス",
       "状態日付(JST)",
+      "志望業界1",
+      "志望業界2",
+      "志望業界3",
+      "志望職種1",
+      "志望職種2",
+      "志望職種3",
       "スカウト文",
     ];
 
@@ -188,6 +199,10 @@ export async function GET(request: NextRequest) {
       // 抽出できない場合は従来のDB値（DateTime）を整形、それも無ければ空欄。
       const lastLoginCell =
         extractLastLoginRaw(d.sourceText) || formatJSTDateTimeForCSV(d.lastLoginAt);
+      // 志望業界・志望職種: 貼り付け本文（source_text）から第3希望までを抽出。
+      // 該当行が無い場合は空欄（抽出関数側で ["", "", ""] を返す）。
+      const [industry1, industry2, industry3] = extractDesiredIndustries(d.sourceText);
+      const [jobType1, jobType2, jobType3] = extractDesiredJobTypes(d.sourceText);
       const row = [
         formatJSTDateTimeForCSV(d.sentAt),
         d.sendDate.toISOString().slice(0, 10),
@@ -203,6 +218,12 @@ export async function GET(request: NextRequest) {
         getStatusLabel(d.offerStatus),
         getOpenStatusLabel(d.openStatus),
         formatJSTDateTimeForCSV(statusDate),
+        industry1,
+        industry2,
+        industry3,
+        jobType1,
+        jobType2,
+        jobType3,
         d.finalMessage,
       ];
       csv += createCSVRow(row);

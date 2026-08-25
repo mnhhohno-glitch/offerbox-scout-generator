@@ -47,6 +47,7 @@ interface Delivery {
   gender: string | null;
   lastLoginAt: string | null;
   offerStatus: string;
+  openStatus: string;
   approvedAt: string | null;
   onHoldAt: string | null;
   cancelledAt: string | null;
@@ -75,6 +76,13 @@ const STATUS_OPTIONS = [
   { value: "approved", label: "承認", color: "bg-green-500 text-white" },
   { value: "on_hold", label: "保留", color: "bg-yellow-500 text-white" },
   { value: "cancelled", label: "辞退", color: "bg-red-500 text-white" },
+];
+
+// 開封ステータス（open_status の3値をそのまま扱う）
+const OPEN_STATUS_OPTIONS = [
+  { value: "opened", label: "開封", color: "bg-green-500 text-white" },
+  { value: "unopened", label: "未開封", color: "bg-gray-500 text-white" },
+  { value: "unknown", label: "未選択", color: "bg-gray-200 text-gray-900" },
 ];
 
 const TIME_SLOTS = ["00-05", "06-11", "12-17", "18-23"];
@@ -239,6 +247,31 @@ export default function DeliveriesPage() {
         )
       );
     } catch (err) {
+      alert(err instanceof Error ? err.message : "エラーが発生しました");
+    }
+  };
+
+  // 開封ステータス変更（画面を先に更新し、失敗したら元の値に戻す）
+  const handleOpenStatusChange = async (id: string, newOpenStatus: string) => {
+    const previous = items.find((item) => item.id === id)?.openStatus ?? "unknown";
+
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, openStatus: newOpenStatus } : item))
+    );
+
+    try {
+      const res = await fetch(`/api/deliveries/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ openStatus: newOpenStatus }),
+      });
+
+      if (!res.ok) throw new Error("開封ステータス更新に失敗しました");
+    } catch (err) {
+      // 失敗時はロールバック
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, openStatus: previous } : item))
+      );
       alert(err instanceof Error ? err.message : "エラーが発生しました");
     }
   };
@@ -545,6 +578,7 @@ export default function DeliveriesPage() {
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">選考中項目</th>
                   <th className="px-3 py-2 text-left whitespace-nowrap text-gray-900">居住地</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">選考</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">開封</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">性別</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">卒業年度</th>
                   <th className="px-3 py-2 text-center whitespace-nowrap text-gray-900">パターン</th>
@@ -599,6 +633,26 @@ export default function DeliveriesPage() {
                           }`}
                         >
                           {STATUS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={
+                            OPEN_STATUS_OPTIONS.some((o) => o.value === item.openStatus)
+                              ? item.openStatus
+                              : "unknown"
+                          }
+                          onChange={(e) => handleOpenStatusChange(item.id, e.target.value)}
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            OPEN_STATUS_OPTIONS.find((o) => o.value === item.openStatus)?.color ||
+                            "bg-gray-200 text-gray-900"
+                          }`}
+                        >
+                          {OPEN_STATUS_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
                               {opt.label}
                             </option>
