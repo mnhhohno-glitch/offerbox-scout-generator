@@ -45,6 +45,38 @@ const SYSTEM_INSTRUCTION_B_PROFILE = `あなたは新卒スカウト文作成の
 出力は必ずJSONのみで、指定キー以外は出力しません。
 ${JSON_INSTRUCTION}`;
 
+// 28D用opening_message生成のsystemInstruction（学部ベース・1文）
+const SYSTEM_INSTRUCTION_28D_OPENING = `あなたは新卒スカウト文の「個別訴求パート」だけを作るライターです。
+${SYSTEM_INSTRUCTION_BASE}
+
+【重要】
+あなたが生成するのは冒頭の1文のみです。
+この後ろに続く固定文（オファーの趣旨・会社紹介）はアプリ側で別途結合します。
+${JSON_INSTRUCTION}`;
+
+// 28D用opening_message生成のプロンプト（自己PRが薄い学生向け・学部の特性から1文）
+const OPENING_28D_TEMPLATE = `以下の学部名から、その学部で培われる特性を伝える1文を作成してください。
+
+【ルール】
+- 出力は1文のみ
+- 形式は必ず以下：
+  「プロフィールを拝見し、【学部名】で培われた、【特性の一言】をお持ちの方だと感じました。」
+- 文末は必ず「方だと感じました。」で終える
+- 【特性の一言】は学部名から一般的に推測できる範囲の視点・考え方にとどめる
+  （例：物事を数字と構造で捉える視点／人の行動や心理を丁寧に読み解く視点）
+- 学生は自己PRがほぼ空欄の前提なので、研究内容・実績・経験の断定は禁止
+- 「すごい」「感銘」「素晴らしい」など過度な称賛は禁止
+- 全体で50〜90文字程度
+- 「」や**などの装飾は禁止
+- 半角スペースは禁止
+- トーンは協調型（寄り添い・押し付けない）
+
+【学部名】
+{facultyName}
+
+【出力形式】
+JSONで {"opening_message":"..."} のみを返してください。`;
+
 // Bパターン用1文生成のプロンプト
 const B_PROFILE_LINE_TEMPLATE = `以下のスカウト文の「プロフィールを拝見し〜」の1文を、学部名に合わせて具体化してください。
 
@@ -306,18 +338,18 @@ export async function POST(request: NextRequest) {
     const { mode, pasteText, facultyName } = body;
 
     // mode検証
-    if (!mode || !["title", "opening", "b_profile_line"].includes(mode)) {
+    if (!mode || !["title", "opening", "opening_28d", "b_profile_line"].includes(mode)) {
       return NextResponse.json(
-        { error: "mode must be 'title', 'opening', or 'b_profile_line'" },
+        { error: "mode must be 'title', 'opening', 'opening_28d', or 'b_profile_line'" },
         { status: 400 }
       );
     }
 
-    // b_profile_lineモードはfacultyNameのみ必要
-    if (mode === "b_profile_line") {
+    // b_profile_line / opening_28d モードはfacultyNameのみ必要
+    if (mode === "b_profile_line" || mode === "opening_28d") {
       if (!facultyName || typeof facultyName !== "string") {
         return NextResponse.json(
-          { error: "facultyName is required for b_profile_line mode" },
+          { error: `facultyName is required for ${mode} mode` },
           { status: 400 }
         );
       }
@@ -353,6 +385,11 @@ export async function POST(request: NextRequest) {
       userPrompt = OPENING_INSTRUCTION_TEMPLATE.replace("{pasteText}", pasteText);
       // 導入バリエーション＋文末多様化のため少し余裕を持たせる（120〜180文字想定）
       maxTokens = 220;
+    } else if (mode === "opening_28d") {
+      // 28D：学部名だけを渡して冒頭1文を作る（自己PRが薄い学生向け）
+      systemInstruction = SYSTEM_INSTRUCTION_28D_OPENING;
+      userPrompt = OPENING_28D_TEMPLATE.replace("{facultyName}", facultyName);
+      maxTokens = 200;
     } else {
       // b_profile_line
       systemInstruction = SYSTEM_INSTRUCTION_B_PROFILE;
@@ -382,7 +419,7 @@ export async function POST(request: NextRequest) {
       const title = extractTitle(rawText).replace(/\\n/g, "\n");
       const finalTitle = Array.from(title).slice(0, 30).join("");
       return NextResponse.json({ title: finalTitle });
-    } else if (mode === "opening") {
+    } else if (mode === "opening" || mode === "opening_28d") {
       const openingMessage = extractOpeningMessage(rawText).replace(/\\n/g, "\n");
       const finalMessage =
         Array.from(openingMessage).length > 300
