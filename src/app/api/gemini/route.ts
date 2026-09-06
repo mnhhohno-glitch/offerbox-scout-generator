@@ -475,8 +475,8 @@ export async function POST(request: NextRequest) {
       // 28RE（再オファー）：本人の強みのみを生成（連絡理由・当社との接続は固定文が担う）
       systemInstruction = SYSTEM_INSTRUCTION_28RE_OPENING;
       userPrompt = OPENING_28RE_TEMPLATE.replace("{pasteText}", pasteText);
-      // 2〜3文（100〜180文字想定）
-      maxTokens = 260;
+      // 2〜3文（100〜180文字想定）。日本語は1文字あたりのトークン消費が大きいので余裕を持たせる
+      maxTokens = 400;
     } else if (mode === "opening_28d") {
       // 28D：学部名だけを渡して冒頭1文を作る（自己PRが薄い学生向け）
       systemInstruction = SYSTEM_INSTRUCTION_28D_OPENING;
@@ -511,7 +511,7 @@ export async function POST(request: NextRequest) {
       const title = extractTitle(rawText).replace(/\\n/g, "\n");
       const finalTitle = Array.from(title).slice(0, 30).join("");
       return NextResponse.json({ title: finalTitle });
-    } else if (mode === "opening" || mode === "opening_28d") {
+    } else if (mode === "opening" || mode === "opening_re" || mode === "opening_28d") {
       const openingMessage = extractOpeningMessage(rawText).replace(/\\n/g, "\n");
       const finalMessage =
         Array.from(openingMessage).length > 300
