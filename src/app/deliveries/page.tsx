@@ -136,6 +136,7 @@ export default function DeliveriesPage() {
         { value: "28C", label: "28C" },
         { value: "28D", label: "28D" },
         { value: "28SP", label: "28SP" },
+        { value: "28RE", label: "28RE（再オファー）" },
       ];
     }
     return [
@@ -150,6 +151,7 @@ export default function DeliveriesPage() {
       { value: "28C", label: "28C" },
       { value: "28D", label: "28D" },
       { value: "28SP", label: "28SP" },
+      { value: "28RE", label: "28RE（再オファー）" },
     ];
   })();
 
@@ -666,6 +668,8 @@ export default function DeliveriesPage() {
                           className={`inline-flex h-6 items-center justify-center rounded-full text-xs font-bold text-white px-2 ${
                             item.templateType === "B"
                               ? "bg-orange-500"
+                              : item.templateType === "28RE"
+                              ? "bg-rose-500"
                               : item.templateType === "28A" || item.templateType === "28B" || item.templateType === "28C" || item.templateType === "28D" || item.templateType === "28SP"
                               ? "bg-indigo-500"
                               : "bg-green-500"

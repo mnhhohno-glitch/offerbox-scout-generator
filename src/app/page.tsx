@@ -163,6 +163,11 @@ const GREETING = `はじめまして。
 株式会社スタートライン
 新卒採用責任者の船戸です。`;
 
+// 28RE（再オファー）専用グリーティング ※一度接触済みのため「はじめまして。」は使わない
+const GREETING_28RE = `こんにちは！
+株式会社スタートライン
+新卒採用責任者の船戸です。`;
+
 // A1パターン用固定文（①説明会誘致＋一次面接確約オファー）※グリーティング除外
 const FIXED_TEXT_A1 = `今回は、
 【説明会参加後、一次面接確約】で
@@ -818,6 +823,129 @@ const FIXED_TEXT_28SP = `◆当社の魅力
 株式会社スタートライン
 新卒採用責任者　船戸`;
 
+// 28RE（再オファー）用タイトル行（固定・Gemini生成しない）
+const TITLE_LINE_28RE = `【再送】あなたに改めてお伝えしたいことがあります！`;
+
+// 28RE（再オファー）用 導入文（グリーティングとAI生成文の間に入る固定文）
+const FIXED_TEXT_28RE_LEAD = `前回のオファー後も、
+あなたのプロフィールが印象に残っていたため、
+もう一度ご連絡しました。`;
+
+// 28RE（再オファー）用 受け文（AI生成文の直後に入る固定文）
+const FIXED_TEXT_28RE_BRIDGE = `当社の仕事に活かしていただける
+強みだと感じています。`;
+
+// 28REパターン用固定本文（28卒｜再オファーボタン専用）
+// ※タイトル行＋グリーティング＋導入文＋個別文＋受け文は別途結合
+const FIXED_TEXT_28RE = `前回はタイミングが
+合わなかったかもしれませんが、
+改めてご案内させてください。
+
+━━━━━━━━━━━━
+◆募集職種
+━━━━━━━━━━━━
+
+・コンサル営業
+・マーケティング
+・バックオフィス　など
+
+当社にはさまざまな仕事があり、
+希望や適性を踏まえて
+配属・職種を決定します。
+
+━━━━━━━━━━━━
+◆選べる2つのWEB仕事体験
+━━━━━━━━━━━━
+
+当社では、興味に合わせて
+2つの仕事体験から気になるコースを選べます！
+
+どちらもチームで考えながら進める
+参加型の仕事体験です。
+
+【① ゲーム×課題解決】
+
+企業が抱える課題をテーマに、
+
+課題を見つける
+→ 解決策を考える
+→ 提案する
+
+までを体験します。
+
+「企業の課題を解決する仕事って？」
+「自分の強みはどんな仕事で活かせる？」
+
+そんなことを考えるきっかけになる内容です。
+
+【② 科学的な支援×仕事体験】
+
+「人を支える」とは、
+具体的にどんな仕事なのか？
+
+行動分析などの
+科学的な根拠に基づく支援をテーマに、
+
+実際のケースをもとに
+
+課題を整理する
+→ 支援方法を考える
+
+までを体験します。
+
+人や社会に関わる仕事を
+より具体的に知ることができます。
+
+━━━━━━━━━━━━
+・WEB／約2時間
+・人事からFBあり
+・早期選考へご案内の特典あり
+━━━━━━━━━━━━
+
+「前回はタイミングが合わなかった」
+
+「今見ている業界以外も知ってみたい」
+
+「自分に合う仕事の幅を広げたい」
+
+どれか一つでも当てはまれば、
+ぜひ気になるコースにご参加ください。
+
+━━━━━━━━━━━━
+◆スタートラインについて
+━━━━━━━━━━━━
+
+私たちは、
+企業と働く人の間にある課題を解決し、
+
+誰もが自分らしく活躍できる環境づくり
+
+を支援している会社です。
+
+人材×福祉×ビジネスの領域で、
+企業の「採用・定着・活躍」などの課題に向き合っています。
+
+【働き方】
+・土日祝休み
+・平均残業20時間未満
+
+今回のオファーも、
+承諾＝応募ではありません。
+
+まずは仕事体験を通じて、
+当社の仕事やご自身との接点を
+知っていただければ嬉しいです。
+
+改めてのご連絡となりますが、
+少しでも気になる内容があれば、
+ぜひオファー承諾をお願いします。
+
+お会いできることを
+楽しみにしています。
+
+株式会社スタートライン
+新卒採用責任者　船戸`;
+
 // サブパターンに応じた固定テキストを返す
 function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
   switch (subPattern) {
@@ -828,13 +956,14 @@ function getFixedTextForPattern(subPattern: "A1" | "A2" | "A3"): string {
 }
 
 // 28卒サブパターンに応じた固定テキストを返す
-function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C" | "28D" | "28SP"): string {
+function getFixedTextFor28Pattern(subPattern: "28A" | "28B" | "28C" | "28D" | "28SP" | "28RE"): string {
   switch (subPattern) {
     case "28A": return FIXED_TEXT_28A;
     case "28B": return FIXED_TEXT_28B;
     case "28C": return FIXED_TEXT_28C;
     case "28D": return FIXED_TEXT_28D;
     case "28SP": return FIXED_TEXT_28SP;
+    case "28RE": return FIXED_TEXT_28RE;
   }
 }
 
@@ -1079,7 +1208,7 @@ export default function Home() {
   const isStaging = useIsStaging();
   const [pasteText, setPasteText] = useState("");
   const [cohortYear, setCohortYear] = useState<CohortYear>(DEFAULT_COHORT_YEAR);
-  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | "28C" | "28D" | "28SP" | null>(null);
+  const [pattern, setPattern] = useState<"A1" | "A2" | "A3" | "B" | "28A" | "28B" | "28C" | "28D" | "28SP" | "28RE" | null>(null);
   const [generatedMessage, setGeneratedMessage] = useState("");
   const [prCharCount, setPrCharCount] = useState<number | null>(null);
   // 28D判定に実際に使った文字数（再発検知用に画面へ表示する）
@@ -1180,7 +1309,7 @@ export default function Home() {
     setCurrentGeminiOutputs({});
   };
 
-  const handleGenerate = async (mode: "normal" | "sp" = "normal") => {
+  const handleGenerate = async (mode: "normal" | "sp" | "re" = "normal") => {
     if (!pasteText.trim()) {
       return;
     }
@@ -1212,12 +1341,15 @@ export default function Home() {
       console.log("性別:", gender ?? "判定不可");
       console.log("生成モード:", mode);
 
-      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 全文500字以下→28D固定 / それ以外→性別によらず28A/28B2択
+      // 卒年で分岐。優先度: (28卒) SPボタン→28SP固定 / 再オファーボタン→28RE固定 / 全文500字以下→28D固定 / それ以外→性別によらず28A/28B2択
       // ※28Dは「0文字超かつPATTERN_28D_MAX_CHARS以下」のときだけ。抽選側からは28Dを出さない
-      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28D" | "28SP" =
+      // ※28RE（再オファー）は専用ボタン限定。抽選側からは絶対に出さない
+      const finalPattern: "A1" | "A2" | "A3" | "28A" | "28B" | "28D" | "28SP" | "28RE" =
         cohortYear === "28"
           ? mode === "sp"
             ? "28SP"
+            : mode === "re"
+            ? "28RE"
             : pasteCharCount > 0 && pasteCharCount <= PATTERN_28D_MAX_CHARS
             ? "28D"
             : judge28SubPattern()
@@ -1229,29 +1361,36 @@ export default function Home() {
 
       // titleとopening_messageを生成（Geminiプロンプトは卒年問わず共通）
       console.log(`=== ${finalPattern}パターン処理開始 ===`);
-      const titleResponse = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "title", pasteText }),
-      });
+      // ※28RE（再オファー）はタイトル行が固定文言のためtitle生成を行わない
+      let titleLine: string;
+      if (finalPattern === "28RE") {
+        geminiOutputs.title = TITLE_LINE_28RE;
+        titleLine = TITLE_LINE_28RE;
+      } else {
+        const titleResponse = await fetch("/api/gemini", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "title", pasteText }),
+        });
 
-      if (!titleResponse.ok) {
-        const errorData = await titleResponse.json();
-        throw new Error(errorData.error || "title生成に失敗しました");
+        if (!titleResponse.ok) {
+          const errorData = await titleResponse.json();
+          throw new Error(errorData.error || "title生成に失敗しました");
+        }
+
+        const titleData = await titleResponse.json();
+        const title = removeAsciiSpaces(titleData.title || "");
+
+        if (!title) {
+          throw new Error("titleが取得できませんでした");
+        }
+
+        geminiOutputs.title = title;
+        titleLine =
+          finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28D" || finalPattern === "28SP"
+            ? build28TitleLine(title)
+            : buildTitleLine(title, finalPattern);
       }
-
-      const titleData = await titleResponse.json();
-      const title = removeAsciiSpaces(titleData.title || "");
-
-      if (!title) {
-        throw new Error("titleが取得できませんでした");
-      }
-
-      geminiOutputs.title = title;
-      const titleLine =
-        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28D" || finalPattern === "28SP"
-          ? build28TitleLine(title)
-          : buildTitleLine(title, finalPattern);
 
       // opening_message生成
       // ※28Dのみ：自己PRが薄い学生向けなので、自己PRではなく学部の特性から冒頭1文を作る
@@ -1272,6 +1411,8 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: useFacultyOpening
           ? JSON.stringify({ mode: "opening_28d", facultyName: faculty28D })
+          : finalPattern === "28RE"
+          ? JSON.stringify({ mode: "opening_re", pasteText })
           : JSON.stringify({ mode: "opening", pasteText }),
       });
 
@@ -1302,11 +1443,15 @@ export default function Home() {
       );
 
       // タイトル行 + グリーティング + 個別訴求 + 固定本文 を結合
+      // ※28REのみ：グリーティングを専用文言にし、個別訴求を導入文・受け文で挟む
       const fixedText =
-        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28D" || finalPattern === "28SP"
+        finalPattern === "28A" || finalPattern === "28B" || finalPattern === "28D" || finalPattern === "28SP" || finalPattern === "28RE"
           ? getFixedTextFor28Pattern(finalPattern)
           : getFixedTextForPattern(finalPattern);
-      const finalMessage = `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
+      const finalMessage =
+        finalPattern === "28RE"
+          ? `${titleLine}\n\n${GREETING_28RE}\n\n${FIXED_TEXT_28RE_LEAD}\n\n${formattedOpening}\n\n${FIXED_TEXT_28RE_BRIDGE}\n\n${fixedText}`
+          : `${titleLine}\n\n${GREETING}\n\n${formattedOpening}\n\n${fixedText}`;
       setGeneratedMessage(finalMessage);
 
       // Gemini出力を保存（履歴保存時に使用）
@@ -1472,6 +1617,16 @@ export default function Home() {
               className="rounded-lg bg-teal-600 px-6 py-3 font-medium text-white transition-colors hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               {loading ? "生成中…" : "文書作成（SP）"}
+            </button>
+          )}
+          {/* 再オファーボタンは28卒のみ有効（27卒では非表示） */}
+          {cohortYear === "28" && (
+            <button
+              onClick={() => handleGenerate("re")}
+              disabled={!pasteText.trim() || loading}
+              className="rounded-lg bg-rose-600 px-6 py-3 font-medium text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-gray-400"
+            >
+              {loading ? "生成中…" : "文書作成（再オファー）"}
             </button>
           )}
         </div>
